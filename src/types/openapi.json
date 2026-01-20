@@ -1,0 +1,3036 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "MySignagePortalApp", "version": "0.1.0" },
+  "paths": {
+    "/v1/user/me": {
+      "get": {
+        "tags": ["user"],
+        "summary": "Get Current User Profile",
+        "description": "Fetch the current user's profile including organisation info.\n\nAuth: Bearer token. Returns user id/email/username/full_name and the user's\norganisation summary (id/name/parent_id) when available. 404 if the user\ncannot be resolved (inactive or missing in legacy DB).",
+        "operationId": "get_current_user_profile_v1_user_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UserProfile" } } }
+          }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      }
+    },
+    "/v1/user/organisations": {
+      "get": {
+        "tags": ["user"],
+        "summary": "List User Organisations",
+        "description": "List the caller's organisation and all descendant organisations.\n\nAuth: Bearer token. Uses the caller's org_id to return a flat list of orgs\nwithin their visibility scope (self + children). Returns 404 if the user\ndoes not have an organisation assigned.",
+        "operationId": "list_user_organisations_v1_user_organisations_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": { "$ref": "#/components/schemas/OrganisationProfile" },
+                  "type": "array",
+                  "title": "Response List User Organisations V1 User Organisations Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      }
+    },
+    "/v1/auth/login": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Authenticate a user and issue an access token",
+        "description": "Handle local username/password authentication.",
+        "operationId": "login_endpoint_v1_auth_login_post",
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LoginRequest" } } },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LoginResponse" } } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      }
+    },
+    "/v1/auth/cognito/callback": {
+      "get": {
+        "tags": ["auth"],
+        "summary": "OAuth callback: exchange code for a local JWT",
+        "description": "Exchange the Cognito authorization code for an ID token and issue our JWT.",
+        "operationId": "cognito_callback_v1_auth_cognito_callback_get",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "description": "Authorization code from Cognito", "title": "Code" },
+            "description": "Authorization code from Cognito"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LoginResponse" } } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      }
+    },
+    "/v1/auth/cognito/bind": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Bind Cognito identity to the currently authenticated user",
+        "description": "Bind an authorization code to the logged-in legacy user.",
+        "operationId": "cognito_bind_v1_auth_cognito_bind_post",
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CognitoBindRequest" } } },
+          "required": true
+        },
+        "responses": {
+          "204": { "description": "Successful Response" },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      }
+    },
+    "/v1/media/": {
+      "get": {
+        "tags": ["media"],
+        "summary": "List media items with pagination and filters",
+        "description": "List media the caller owns, with rich filters and pagination.\n\nAuth: Bearer token; results are scoped to the current user's uploads (owner_user_id)\nand, when available, their organisation. Inputs: optional `q` fuzzy-matches name/description,\n`media_type` filters image/video/html/zip/other, `tag_ids` uses AND semantics (must contain all),\n`include_deleted` toggles soft-deleted items, `page`/`size` drive pagination. Hierarchy: omitting\n`folder_id` intentionally returns only root-level media (folder_id IS NULL); provide a folder_id\nto list items inside that folder. Org scope: results are filtered to the caller's organisation\nand all its descendant orgs; when organisation_id is provided and within that scope, results are\nfurther limited to that specific organisation. Response: items include tags, thumbnail URLs/keys,\ntimestamps, deletion marker, and a `total` count for pagination.",
+        "operationId": "list_media_v1_media__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
+              "description": "Fuzzy search on name/description",
+              "title": "Q"
+            },
+            "description": "Fuzzy search on name/description"
+          },
+          {
+            "name": "media_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
+              "description": "Filter by media type (image/video/html/zip/other)",
+              "title": "Media Type"
+            },
+            "description": "Filter by media type (image/video/html/zip/other)"
+          },
+          {
+            "name": "folder_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "integer" }, { "type": "null" }],
+              "description": "Filter by folder id; null means top-level only",
+              "title": "Folder Id"
+            },
+            "description": "Filter by folder id; null means top-level only"
+          },
+          {
+            "name": "tag_ids",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "array", "items": { "type": "integer" } }, { "type": "null" }],
+              "description": "Filter by one or more tag ids",
+              "title": "Tag Ids"
+            },
+            "description": "Filter by one or more tag ids"
+          },
+          {
+            "name": "include_deleted",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include soft-deleted media when true",
+              "default": false,
+              "title": "Include Deleted"
+            },
+            "description": "Include soft-deleted media when true"
+          },
+          {
+            "name": "organisation_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "integer" }, { "type": "null" }],
+              "description": "Optional organisation id to scope results; must be within caller org tree",
+              "title": "Organisation Id"
+            },
+            "description": "Optional organisation id to scope results; must be within caller org tree"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 1, "default": 1, "title": "Page" }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "maximum": 200, "minimum": 1, "default": 20, "title": "Size" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MediaListResponse" } } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      },
+      "post": {
+        "tags": ["media"],
+        "summary": "Upload media to S3 (Unprocessed prefix)",
+        "description": "Upload a file to S3 under `Unprocessed/` and create an uploads row.\n\nAuth: Bearer token. Inputs: multipart `file` plus optional `folder_id` (validated against the\ncaller's organisation). Validation: filename required; SizeLimitedReader enforces 10 GiB cap;\nupload_type inferred from MIME/extension. Side effects: writes to S3 at\n`Unprocessed/YYYY/MM/DD/<upload_uuid>/<uuid>_<filename>`; inserts an `uploads` record with\nstatus=pending, owner=user_id, optional folder_id for later media creation. Response: upload\nmetadata (ids, prefix/key, status/type, size, folder_id) for client-side status polling.",
+        "operationId": "upload_media_endpoint_v1_media__post",
+        "security": [{ "HTTPBearer": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": { "$ref": "#/components/schemas/Body_upload_media_endpoint_v1_media__post" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MediaUploadResponse" } } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      }
+    },
+    "/v1/media/uploads/{upload_id}": {
+      "get": {
+        "tags": ["media"],
+        "summary": "Check media upload status",
+        "description": "Check upload status (restricted to the current user's uploads).\n\nAuth: Bearer token. Input: upload_id path. Enforcement: rejects uploads not owned by the caller\n(treated as 404). Returns current status, keys (original/processed/thumbnail), size/type,\nfolder_id, and media_id if Lambda processing has already created a media record.",
+        "operationId": "get_upload_status_v1_media_uploads__upload_id__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          { "name": "upload_id", "in": "path", "required": true, "schema": { "type": "string", "title": "Upload Id" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MediaUploadResponse" } } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      }
+    },
+    "/v1/media/notify": {
+      "post": {
+        "tags": ["media"],
+        "summary": "Notify backend of upload processing result (Lambda callback)",
+        "description": "Handle Lambda callback: update upload status and create/refresh media on completion.\n\nAuth: UPLOAD_NOTIFY_TOKEN Bearer (no user token). Input: upload_id (required), status in\n{processing, completed, failed}, optional processed_key, thumbnail_key, upload_type,\nerror_message. Behavior: validates status, updates uploads prefix/status/keys/type, and when\nstatus=completed idempotently creates or refreshes the associated media row (keeping folder_id\nfrom upload). Response: updated upload plus media_id when available; 404 if upload missing.",
+        "operationId": "notify_upload_result_v1_media_notify_post",
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UploadNotifyRequest" } } },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MediaUploadResponse" } } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      }
+    },
+    "/v1/media/folders": {
+      "get": {
+        "tags": ["media"],
+        "summary": "List folder tree",
+        "description": "Get the folder tree visible to the current user.\n\nAuth: Bearer token. Scope: caller's organisation. Returns a tree of non-deleted folders with\nchildren populated to support UI rendering; media items are not included here.",
+        "operationId": "list_folder_tree_v1_media_folders_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FolderTreeResponse" } } }
+          }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      },
+      "post": {
+        "tags": ["media"],
+        "summary": "Create media folder",
+        "description": "Create a logical media folder (not tied to S3 prefixes).\n\nAuth: Bearer token. Input: name, optional parent_folder_id (must exist, not deleted, same org),\noptional sort_order. Validation: rejects duplicate sibling names with 400; parent existence and\norg ownership enforced. Side effects: inserts folder row; no S3 interaction. Response: created\nfolder node with hierarchy metadata (ids, parent, sort order, flags).",
+        "operationId": "create_media_folder_v1_media_folders_post",
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FolderCreateRequest" } } },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FolderNode" } } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      }
+    },
+    "/v1/media/folders/{folder_id}/children": {
+      "get": {
+        "tags": ["media"],
+        "summary": "List folder children",
+        "description": "List direct child folders under a parent.\n\nAuth: Bearer token. Input: parent folder_id. Scope: caller's organisation. Returns immediate\nchild folders only (no media items), excluding soft-deleted ones.",
+        "operationId": "list_folder_children_v1_media_folders__folder_id__children_get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          { "name": "folder_id", "in": "path", "required": true, "schema": { "type": "integer", "title": "Folder Id" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/FolderNode" },
+                  "title": "Response List Folder Children V1 Media Folders  Folder Id  Children Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      }
+    },
+    "/v1/media/folders/{folder_id}": {
+      "put": {
+        "tags": ["media"],
+        "summary": "Update folder (rename/move)",
+        "description": "Rename/move a folder or update its sort order.\n\nAuth: Bearer token. Input: name/parent_folder_id/sort_order. Validation: both current folder\nand new parent must belong to caller's org; cycle detection prevents moving into descendants;\nduplicate sibling names raise 400. Response: updated folder node.",
+        "operationId": "update_folder_v1_media_folders__folder_id__put",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          { "name": "folder_id", "in": "path", "required": true, "schema": { "type": "integer", "title": "Folder Id" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FolderUpdateRequest",
+                "description": "New name/parent/sort_order for folder"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FolderNode" } } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["media"],
+        "summary": "Soft delete folder",
+        "description": "Soft delete an empty folder.\n\nAuth: Bearer token. Preconditions: folder must belong to caller's org and be empty (no active\nchild folders, no non-deleted media). Errors: 400 when not empty, 404 when missing/inaccessible.\nSide effects: sets deleted_at only (no S3 actions). Response: 204 on success.",
+        "operationId": "delete_folder_v1_media_folders__folder_id__delete",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          { "name": "folder_id", "in": "path", "required": true, "schema": { "type": "integer", "title": "Folder Id" } }
+        ],
+        "responses": {
+          "204": { "description": "Successful Response" },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      }
+    },
+    "/v1/media/presets": {
+      "get": {
+        "tags": ["media"],
+        "summary": "List media filter presets for the current user",
+        "description": "Return saved media filter presets scoped to the caller.",
+        "operationId": "list_media_filter_presets_v1_media_presets_get",
+        "security": [{ "HTTPBearer": [] }],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FilterPresetListResponse" } } }
+          }
+        }
+      },
+      "post": {
+        "tags": ["media"],
+        "summary": "Create a media filter preset",
+        "description": "Persist a filter preset for media list endpoints.",
+        "operationId": "create_media_filter_presets_v1_media_presets_post",
+        "security": [{ "HTTPBearer": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FilterPresetCreateRequest" } } }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FilterPresetResponse" } } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["media"],
+        "summary": "Delete a media filter preset",
+        "description": "Delete a saved media filter preset owned by the caller.",
+        "operationId": "delete_media_filter_presets_v1_media_presets_delete",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "preset_id",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "description": "Preset id to remove", "title": "Preset Id" },
+            "description": "Preset id to remove"
+          }
+        ],
+        "responses": {
+          "204": { "description": "Successful Response" },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      }
+    },
+    "/v1/media/{media_id}": {
+      "get": {
+        "tags": ["media"],
+        "summary": "Get media detail",
+        "description": "Get media detail including upload metadata and URLs.\n\nAuth: Bearer token. Scope: caller's ownership/organisation. Returns media fields plus upload\nmetadata (size/content_type/status), processed object key/URL, thumbnail key/URL, tags, and\nfolder info. Errors: 404 when missing or not accessible to caller.",
+        "operationId": "get_media_detail_v1_media__media_id__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          { "name": "media_id", "in": "path", "required": true, "schema": { "type": "string", "title": "Media Id" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MediaDetail" } } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["media"],
+        "summary": "Soft delete media",
+        "description": "Soft delete a media item (S3 objects remain).\n\nAuth: Bearer token. Scope: owner/org. Marks deleted_at only; does not delete S3 objects or\nrelated uploads. Errors: 404 when missing or inaccessible. Response: 204 on success.",
+        "operationId": "delete_media_v1_media__media_id__delete",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          { "name": "media_id", "in": "path", "required": true, "schema": { "type": "string", "title": "Media Id" } }
+        ],
+        "responses": {
+          "204": { "description": "Successful Response" },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      },
+      "put": {
+        "tags": ["media"],
+        "summary": "Update media",
+        "description": "Update media fields and tags, or restore a soft-deleted item.\n\nAuth: Bearer token. Scope: owner/org. Inputs: name, description, folder_id (move/unset),\ntag_ids (full replacement), restore flag to clear deleted_at. Validation: folder must exist\nwithin org; all tag_ids must exist and be active. Response: refreshed media detail; 404 when\nmissing or unauthorized; 400 on validation errors.",
+        "operationId": "update_media_v1_media__media_id__put",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          { "name": "media_id", "in": "path", "required": true, "schema": { "type": "string", "title": "Media Id" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MediaUpdateRequest" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MediaDetail" } } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      }
+    },
+    "/v1/media/move": {
+      "post": {
+        "tags": ["media"],
+        "summary": "Move multiple media into a folder",
+        "description": "Move multiple media items to a target folder in one request.\n\nAuth: Bearer token. Validates target folder is within caller's org scope and\nthat all provided media ids are accessible to the caller.",
+        "operationId": "move_media_batch_v1_media_move_post",
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MediaMoveRequest" } } },
+          "required": true
+        },
+        "responses": {
+          "204": { "description": "Successful Response" },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      }
+    },
+    "/v1/media/{media_id}/duplicate": {
+      "post": {
+        "tags": ["media"],
+        "summary": "Duplicate media (placeholder)",
+        "description": "Placeholder: create a copy of a media item (including upload linkage) and\noptionally place it in another folder. Should accept destination folder and\nreturn the new media id.",
+        "operationId": "duplicate_media_v1_media__media_id__duplicate_post",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          { "name": "media_id", "in": "path", "required": true, "schema": { "type": "string", "title": "Media Id" } }
+        ],
+        "responses": {
+          "200": { "description": "Successful Response", "content": { "application/json": { "schema": {} } } },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      }
+    },
+    "/v1/media/{media_id}/usage": {
+      "get": {
+        "tags": ["media"],
+        "summary": "Get media usage (placeholder)",
+        "description": "Placeholder: list where a media item is referenced (playlists, schedules,\ndevices), for impact analysis before deletion.",
+        "operationId": "get_media_usage_v1_media__media_id__usage_get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          { "name": "media_id", "in": "path", "required": true, "schema": { "type": "string", "title": "Media Id" } }
+        ],
+        "responses": {
+          "200": { "description": "Successful Response", "content": { "application/json": { "schema": {} } } },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      }
+    },
+    "/v1/media/{media_id}/publish": {
+      "post": {
+        "tags": ["media"],
+        "summary": "Publish media (placeholder)",
+        "description": "Placeholder: publish a media item to make it available for downstream\ndelivery/playback pipelines; expected to trigger packaging or cache invalidation.",
+        "operationId": "publish_media_v1_media__media_id__publish_post",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          { "name": "media_id", "in": "path", "required": true, "schema": { "type": "string", "title": "Media Id" } }
+        ],
+        "responses": {
+          "200": { "description": "Successful Response", "content": { "application/json": { "schema": {} } } },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      }
+    },
+    "/v1/devices/presets": {
+      "get": {
+        "tags": ["devices"],
+        "summary": "List device filter presets for the current user",
+        "description": "Return saved device filter presets scoped to the caller.",
+        "operationId": "list_device_filter_presets_v1_devices_presets_get",
+        "security": [{ "HTTPBearer": [] }],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FilterPresetListResponse" } } }
+          }
+        }
+      },
+      "post": {
+        "tags": ["devices"],
+        "summary": "Create a device filter preset",
+        "description": "Persist a filter preset for device list endpoints.",
+        "operationId": "create_device_filter_presets_v1_devices_presets_post",
+        "security": [{ "HTTPBearer": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FilterPresetCreateRequest" } } }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FilterPresetResponse" } } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["devices"],
+        "summary": "Delete a device filter preset",
+        "description": "Delete a saved device filter preset owned by the caller.",
+        "operationId": "delete_device_filter_presets_v1_devices_presets_delete",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "preset_id",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "description": "Preset id to remove", "title": "Preset Id" },
+            "description": "Preset id to remove"
+          }
+        ],
+        "responses": {
+          "204": { "description": "Successful Response" },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      }
+    },
+    "/v1/devices/": {
+      "get": {
+        "tags": ["devices"],
+        "summary": "List Devices",
+        "description": "List all devices with pagination, search, status, organisation and tag filters.",
+        "operationId": "list_devices_v1_devices__get",
+        "responses": {
+          "200": { "description": "Successful Response", "content": { "application/json": { "schema": {} } } }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      },
+      "post": {
+        "tags": ["devices"],
+        "summary": "Create Device",
+        "description": "Create a new device (name, organisation, licence, location, timezone, resolution, tags).",
+        "operationId": "create_device_v1_devices__post",
+        "responses": {
+          "200": { "description": "Successful Response", "content": { "application/json": { "schema": {} } } }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      }
+    },
+    "/v1/devices/{device_id}": {
+      "get": {
+        "tags": ["devices"],
+        "summary": "Get Device Detail",
+        "description": "Get full details for a single device, including status, last heartbeat, location and bindings.",
+        "operationId": "get_device_detail_v1_devices__device_id__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          { "name": "device_id", "in": "path", "required": true, "schema": { "type": "string", "title": "Device Id" } }
+        ],
+        "responses": {
+          "200": { "description": "Successful Response", "content": { "application/json": { "schema": {} } } },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      },
+      "put": {
+        "tags": ["devices"],
+        "summary": "Update Device",
+        "description": "Update an existing device’s metadata (name, location, tags, bindings, etc.).",
+        "operationId": "update_device_v1_devices__device_id__put",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          { "name": "device_id", "in": "path", "required": true, "schema": { "type": "string", "title": "Device Id" } }
+        ],
+        "responses": {
+          "200": { "description": "Successful Response", "content": { "application/json": { "schema": {} } } },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["devices"],
+        "summary": "Delete Device",
+        "description": "Permanently delete a device.",
+        "operationId": "delete_device_v1_devices__device_id__delete",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          { "name": "device_id", "in": "path", "required": true, "schema": { "type": "string", "title": "Device Id" } }
+        ],
+        "responses": {
+          "200": { "description": "Successful Response", "content": { "application/json": { "schema": {} } } },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      }
+    },
+    "/v1/devices/{device_id}/reboot": {
+      "patch": {
+        "tags": ["devices"],
+        "summary": "Reboot Device",
+        "description": "Trigger a remote reboot for a single device.",
+        "operationId": "reboot_device_v1_devices__device_id__reboot_patch",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          { "name": "device_id", "in": "path", "required": true, "schema": { "type": "string", "title": "Device Id" } }
+        ],
+        "responses": {
+          "200": { "description": "Successful Response", "content": { "application/json": { "schema": {} } } },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      }
+    },
+    "/v1/devices/reboot": {
+      "post": {
+        "tags": ["devices"],
+        "summary": "Bulk Reboot Devices",
+        "description": "Trigger a remote reboot for multiple devices in one request.",
+        "operationId": "bulk_reboot_devices_v1_devices_reboot_post",
+        "responses": {
+          "200": { "description": "Successful Response", "content": { "application/json": { "schema": {} } } }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      }
+    },
+    "/v1/devices/{device_id}/schedules": {
+      "get": {
+        "tags": ["devices"],
+        "summary": "Get Device Schedules",
+        "description": "Return all schedule instances affecting a device in a given date range.",
+        "operationId": "get_device_schedules_v1_devices__device_id__schedules_get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          { "name": "device_id", "in": "path", "required": true, "schema": { "type": "string", "title": "Device Id" } }
+        ],
+        "responses": {
+          "200": { "description": "Successful Response", "content": { "application/json": { "schema": {} } } },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      }
+    },
+    "/v1/playlists/": {
+      "get": {
+        "tags": ["playlists"],
+        "summary": "List Playlists",
+        "description": "List playlists with pagination and optional tag filters.",
+        "operationId": "list_playlists_v1_playlists__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
+              "description": "Search by playlist name",
+              "title": "Q"
+            },
+            "description": "Search by playlist name"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Page number (1-based)",
+              "default": 1,
+              "title": "Page"
+            },
+            "description": "Page number (1-based)"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Page size",
+              "default": 25,
+              "title": "Page Size"
+            },
+            "description": "Page size"
+          },
+          {
+            "name": "include_disabled",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include disabled playlists when true",
+              "default": false,
+              "title": "Include Disabled"
+            },
+            "description": "Include disabled playlists when true"
+          },
+          {
+            "name": "organisation_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "integer" }, { "type": "null" }],
+              "description": "Optional organisation id to scope results; must belong to caller's org tree",
+              "title": "Organisation Id"
+            },
+            "description": "Optional organisation id to scope results; must belong to caller's org tree"
+          },
+          {
+            "name": "content_tag_ids",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "array", "items": { "type": "integer" } }, { "type": "null" }],
+              "description": "Filter playlists containing all provided content tag ids",
+              "title": "Content Tag Ids"
+            },
+            "description": "Filter playlists containing all provided content tag ids"
+          },
+          {
+            "name": "time_tag_ids",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "array", "items": { "type": "string" } }, { "type": "null" }],
+              "description": "Filter playlists containing all provided time tag ids",
+              "title": "Time Tag Ids"
+            },
+            "description": "Filter playlists containing all provided time tag ids"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PlaylistListResponse" } } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      },
+      "post": {
+        "tags": ["playlists"],
+        "summary": "Create Playlist",
+        "description": "Create a playlist with optional initial items and tag associations.",
+        "operationId": "create_playlist_v1_playlists__post",
+        "security": [{ "HTTPBearer": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PlaylistCreate" } } }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PlaylistDetail" } } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      }
+    },
+    "/v1/playlists/presets": {
+      "get": {
+        "tags": ["playlists"],
+        "summary": "List playlist filter presets for the current user",
+        "description": "Return saved playlist filter presets scoped to the caller.",
+        "operationId": "list_playlist_filter_presets_v1_playlists_presets_get",
+        "security": [{ "HTTPBearer": [] }],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FilterPresetListResponse" } } }
+          }
+        }
+      },
+      "post": {
+        "tags": ["playlists"],
+        "summary": "Create a playlist filter preset",
+        "description": "Persist a filter preset for playlist list endpoints.",
+        "operationId": "create_playlist_filter_presets_v1_playlists_presets_post",
+        "security": [{ "HTTPBearer": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FilterPresetCreateRequest" } } }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FilterPresetResponse" } } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["playlists"],
+        "summary": "Delete a playlist filter preset",
+        "description": "Delete a saved playlist filter preset owned by the caller.",
+        "operationId": "delete_playlist_filter_presets_v1_playlists_presets_delete",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "preset_id",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "description": "Preset id to remove", "title": "Preset Id" },
+            "description": "Preset id to remove"
+          }
+        ],
+        "responses": {
+          "204": { "description": "Successful Response" },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      }
+    },
+    "/v1/playlists/{playlist_id}": {
+      "get": {
+        "tags": ["playlists"],
+        "summary": "Get Playlist Detail",
+        "description": "Return full playlist detail including items and associated tags.",
+        "operationId": "get_playlist_detail_v1_playlists__playlist_id__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "playlist_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Playlist Id" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PlaylistDetail" } } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      },
+      "put": {
+        "tags": ["playlists"],
+        "summary": "Update Playlist",
+        "description": "Update playlist metadata and replace tag associations when provided.",
+        "operationId": "update_playlist_v1_playlists__playlist_id__put",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "playlist_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Playlist Id" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PlaylistUpdate" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PlaylistDetail" } } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["playlists"],
+        "summary": "Delete Playlist",
+        "description": "Soft delete a playlist and its items.",
+        "operationId": "delete_playlist_v1_playlists__playlist_id__delete",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "playlist_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Playlist Id" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Successful Response" },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      }
+    },
+    "/v1/playlists/{playlist_id}/media": {
+      "post": {
+        "tags": ["playlists"],
+        "summary": "Add Playlist Items",
+        "description": "Add one or more media items into a playlist with duration and tag rules.",
+        "operationId": "add_playlist_items_v1_playlists__playlist_id__media_post",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "playlist_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Playlist Id" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/PlaylistItemCreateInPlaylist" },
+                "title": "Items"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/PlaylistItemRead" },
+                  "title": "Response Add Playlist Items V1 Playlists  Playlist Id  Media Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      }
+    },
+    "/v1/playlists/{playlist_id}/media/{playlist_media_id}": {
+      "put": {
+        "tags": ["playlists"],
+        "summary": "Update Playlist Item",
+        "description": "Update a single playlist item (duration/tags/active window).",
+        "operationId": "update_playlist_item_v1_playlists__playlist_id__media__playlist_media_id__put",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "playlist_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Playlist Id" }
+          },
+          {
+            "name": "playlist_media_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Playlist Media Id" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PlaylistItemUpdate" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PlaylistItemRead" } } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["playlists"],
+        "summary": "Remove Playlist Item",
+        "description": "Remove (soft delete) a media item from a playlist.",
+        "operationId": "remove_playlist_item_v1_playlists__playlist_id__media__playlist_media_id__delete",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "playlist_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Playlist Id" }
+          },
+          {
+            "name": "playlist_media_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Playlist Media Id" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Successful Response" },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      }
+    },
+    "/v1/playlists/{playlist_id}/media/reorder": {
+      "post": {
+        "tags": ["playlists"],
+        "summary": "Reorder Playlist Items",
+        "description": "Rewrite playlist item ordering using the supplied item id list.",
+        "operationId": "reorder_playlist_items_v1_playlists__playlist_id__media_reorder_post",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "playlist_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Playlist Id" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/PlaylistItemsReorderRequest" } }
+          }
+        },
+        "responses": {
+          "204": { "description": "Successful Response" },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      }
+    },
+    "/v1/playlists/{playlist_id}/devices": {
+      "get": {
+        "tags": ["playlists"],
+        "summary": "Get Playlist Devices",
+        "description": "List all devices currently using this playlist.",
+        "operationId": "get_playlist_devices_v1_playlists__playlist_id__devices_get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "playlist_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Playlist Id" }
+          }
+        ],
+        "responses": {
+          "501": { "description": "Successful Response", "content": { "application/json": { "schema": {} } } },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      }
+    },
+    "/v1/playlists/{playlist_id}/schedules": {
+      "get": {
+        "tags": ["playlists"],
+        "summary": "Get Playlist Schedules",
+        "description": "Return all schedule instances where this playlist is scheduled.",
+        "operationId": "get_playlist_schedules_v1_playlists__playlist_id__schedules_get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "playlist_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Playlist Id" }
+          }
+        ],
+        "responses": {
+          "501": { "description": "Successful Response", "content": { "application/json": { "schema": {} } } },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      }
+    },
+    "/v1/playlists/{playlist_id}/publish": {
+      "post": {
+        "tags": ["playlists"],
+        "summary": "Publish Playlist",
+        "description": "Publish a playlist so changes are rolled out to devices and schedules.",
+        "operationId": "publish_playlist_v1_playlists__playlist_id__publish_post",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "playlist_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Playlist Id" }
+          }
+        ],
+        "responses": {
+          "501": { "description": "Successful Response", "content": { "application/json": { "schema": {} } } },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      }
+    },
+    "/v1/schedules/": {
+      "get": {
+        "tags": ["schedules"],
+        "summary": "List Schedules",
+        "description": "List all schedules with pagination, search, organisation and target filters.",
+        "operationId": "list_schedules_v1_schedules__get",
+        "responses": {
+          "200": { "description": "Successful Response", "content": { "application/json": { "schema": {} } } }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      }
+    },
+    "/v1/schedules/{schedule_id}": {
+      "get": {
+        "tags": ["schedules"],
+        "summary": "Get Schedule Detail",
+        "description": "Get full details for a schedule, including targets, date range and time rules.",
+        "operationId": "get_schedule_detail_v1_schedules__schedule_id__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "schedule_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Schedule Id" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Successful Response", "content": { "application/json": { "schema": {} } } },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      }
+    },
+    "/v1/schedules/{schedule_id}/occurrences": {
+      "get": {
+        "tags": ["schedules"],
+        "summary": "Get Schedule Occurrences",
+        "description": "Expand a schedule into concrete occurrences over a date range for calendars.",
+        "operationId": "get_schedule_occurrences_v1_schedules__schedule_id__occurrences_get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "schedule_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Schedule Id" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Successful Response", "content": { "application/json": { "schema": {} } } },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      }
+    },
+    "/v1/apps/": {
+      "get": {
+        "tags": ["apps"],
+        "summary": "List Apps",
+        "description": "List all available apps with search, category and organisation filters.",
+        "operationId": "list_apps_v1_apps__get",
+        "responses": {
+          "200": { "description": "Successful Response", "content": { "application/json": { "schema": {} } } }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      }
+    },
+    "/v1/apps/{app_id}": {
+      "get": {
+        "tags": ["apps"],
+        "summary": "Get App Detail",
+        "description": "Get details of a specific app (description, version, permissions, config schema).",
+        "operationId": "get_app_detail_v1_apps__app_id__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          { "name": "app_id", "in": "path", "required": true, "schema": { "type": "string", "title": "App Id" } }
+        ],
+        "responses": {
+          "200": { "description": "Successful Response", "content": { "application/json": { "schema": {} } } },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      }
+    },
+    "/v1/apps/installed": {
+      "get": {
+        "tags": ["apps"],
+        "summary": "List Installed Apps",
+        "description": "List apps that are installed for a given organisation or device.",
+        "operationId": "list_installed_apps_v1_apps_installed_get",
+        "responses": {
+          "200": { "description": "Successful Response", "content": { "application/json": { "schema": {} } } }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      }
+    },
+    "/v1/apps/{app_id}/install": {
+      "post": {
+        "tags": ["apps"],
+        "summary": "Install App",
+        "description": "Install an app for an organisation and/or a set of devices with initial config.",
+        "operationId": "install_app_v1_apps__app_id__install_post",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          { "name": "app_id", "in": "path", "required": true, "schema": { "type": "string", "title": "App Id" } }
+        ],
+        "responses": {
+          "200": { "description": "Successful Response", "content": { "application/json": { "schema": {} } } },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["apps"],
+        "summary": "Uninstall App",
+        "description": "Uninstall an app from an organisation or from specific devices.",
+        "operationId": "uninstall_app_v1_apps__app_id__install_delete",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          { "name": "app_id", "in": "path", "required": true, "schema": { "type": "string", "title": "App Id" } }
+        ],
+        "responses": {
+          "200": { "description": "Successful Response", "content": { "application/json": { "schema": {} } } },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      }
+    },
+    "/v1/tags/content": {
+      "get": {
+        "tags": ["tags"],
+        "summary": "List Content Tags",
+        "description": "List content tags visible to the current user, with optional search and pagination.\n\nRequires Bearer auth. Filters by the caller's organisation (or global tags if supported).\nAccepts optional `q` (substring search on name), `page`, and `page_size` (capped at 100).",
+        "operationId": "list_content_tags_v1_tags_content_get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
+              "description": "Case-insensitive substring match on tag name",
+              "title": "Q"
+            },
+            "description": "Case-insensitive substring match on tag name"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Page number (1-based)",
+              "default": 1,
+              "title": "Page"
+            },
+            "description": "Page number (1-based)"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Page size (max 100 items)",
+              "default": 25,
+              "title": "Page Size"
+            },
+            "description": "Page size (max 100 items)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TagListResponse" } } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      },
+      "post": {
+        "tags": ["tags"],
+        "summary": "Create Content Tag",
+        "description": "Create a content tag.\n\nRequires Bearer auth; organisation defaults to the caller. Accepts name (required),\noptional description, and optional hex color (#RRGGBB). Validates color format and\nenforces unique name within the same organisation (400 on conflict). Returns the created tag.",
+        "operationId": "create_content_tag_v1_tags_content_post",
+        "security": [{ "HTTPBearer": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TagCreateRequest" } } }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TagResponse" } } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      }
+    },
+    "/v1/tags/content/{tag_id}": {
+      "get": {
+        "tags": ["tags"],
+        "summary": "Get Content Tag Detail",
+        "description": "Return full details for a content tag including type and usage counts.\n\nAuth: Bearer token. Scope: caller's organisation. Response includes tag type (content),\nmetadata, and aggregated usage counts across media/playlists/devices. Errors: 404 when the\ntag is missing or belongs to another organisation.",
+        "operationId": "get_content_tag_detail_v1_tags_content__tag_id__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "tag_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "pattern": "\\d+", "title": "Tag Id" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TagDetailResponse" } } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      },
+      "put": {
+        "tags": ["tags"],
+        "summary": "Update Content Tag",
+        "description": "Update tag name/notes/color for a specific content tag.\n\nAuth: Bearer token. Scope: caller's organisation. Request body accepts any combination of\nname, description, or color (hex). Returns the updated tag. Errors: 400 on validation/duplicate\nname, 404 when the tag is missing or inaccessible.",
+        "operationId": "update_content_tag_v1_tags_content__tag_id__put",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "tag_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "pattern": "\\d+", "title": "Tag Id" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TagUpdateRequest" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TagResponse" } } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["tags"],
+        "summary": "Delete Content Tag",
+        "description": "Soft delete a content tag after validating it is safe to remove.\n\nAuth: Bearer token. Scope: caller's organisation. Prevents deletion when the tag is still\nreferenced by any media/playlists/devices. Errors: 400 when in use; 404 when missing.",
+        "operationId": "delete_content_tag_v1_tags_content__tag_id__delete",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "tag_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "pattern": "\\d+", "title": "Tag Id" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Successful Response" },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      }
+    },
+    "/v1/tags/content/{tag_id}/usage": {
+      "get": {
+        "tags": ["tags"],
+        "summary": "Get Content Tag Usage",
+        "description": "Show where a content tag is used (media, playlists, devices).\n\nAuth: Bearer token. Scope: caller's organisation. Returns ids for media/playlists/devices\nthat reference the tag (empty lists when unused). Errors: 404 when tag not found.",
+        "operationId": "get_content_tag_usage_v1_tags_content__tag_id__usage_get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "tag_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "pattern": "\\d+", "title": "Tag Id" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TagUsageResponse" } } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      }
+    },
+    "/v1/tags/time": {
+      "get": {
+        "tags": ["tags"],
+        "summary": "List Time Tags",
+        "description": "List non-deleted time tags with pagination and optional search on name.\n\nAuth: Bearer token. Returns items without windows plus pagination metadata.",
+        "operationId": "list_time_tags_v1_tags_time_get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
+              "description": "Case-insensitive substring match on name",
+              "title": "Q"
+            },
+            "description": "Case-insensitive substring match on name"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 1, "default": 1, "title": "Page" }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "maximum": 100, "minimum": 1, "default": 25, "title": "Page Size" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TimeTagListResponse" } } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      },
+      "post": {
+        "tags": ["tags"],
+        "summary": "Create Time Tag",
+        "description": "Create a time tag with one or more windows (local time, no timezone).\n\nInputs:\n- `windows[].days_of_week`: list of days 0=Monday ... 6=Sunday (player local week-day).\n- `windows[].start_time` / `end_time`: minute precision only (`HH:MM`, no seconds/millis).\n\nAuth: Bearer token. Validates unique name and ensures per-day windows do not overlap.\nErrors: 400 on name conflict or window overlap.",
+        "operationId": "create_time_tag_v1_tags_time_post",
+        "security": [{ "HTTPBearer": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TimeTagCreate" } } }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TimeTagRead" } } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      }
+    },
+    "/v1/tags/time/{tag_id}": {
+      "get": {
+        "tags": ["tags"],
+        "summary": "Get Time Tag Detail",
+        "description": "Return full details for a time tag including its windows.\n\nAuth: Bearer token. 404 when missing or soft-deleted.",
+        "operationId": "get_time_tag_detail_v1_tags_time__tag_id__get",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          { "name": "tag_id", "in": "path", "required": true, "schema": { "type": "string", "title": "Tag Id" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TimeTagRead" } } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      },
+      "put": {
+        "tags": ["tags"],
+        "summary": "Update Time Tag",
+        "description": "Update a time tag; windows are fully replaced when provided.\n\nInputs:\n- `windows[].days_of_week`: list of days 0=Monday ... 6=Sunday (player local week-day).\n- `windows[].start_time` / `end_time`: minute precision only (`HH:MM`, no seconds/millis).\n\nAuth: Bearer token. Partial updates for name/description/is_active. When `windows`\nis supplied, existing windows are deleted and replaced (validated for overlap and minute precision).\nErrors: 404 when tag missing; 400 on name conflict or overlap.",
+        "operationId": "update_time_tag_v1_tags_time__tag_id__put",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          { "name": "tag_id", "in": "path", "required": true, "schema": { "type": "string", "title": "Tag Id" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TimeTagUpdate" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TimeTagRead" } } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["tags"],
+        "summary": "Delete Time Tag",
+        "description": "Soft delete a time tag (sets deleted_at). Windows remain for audit.\n\nAuth: Bearer token. 404 when missing or already deleted.",
+        "operationId": "delete_time_tag_v1_tags_time__tag_id__delete",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          { "name": "tag_id", "in": "path", "required": true, "schema": { "type": "string", "title": "Tag Id" } }
+        ],
+        "responses": {
+          "204": { "description": "Successful Response" },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_upload_media_endpoint_v1_media__post": {
+        "properties": {
+          "file": { "type": "string", "format": "binary", "title": "File" },
+          "folder_id": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Folder Id",
+            "description": "Optional target folder id for this upload"
+          }
+        },
+        "type": "object",
+        "required": ["file"],
+        "title": "Body_upload_media_endpoint_v1_media__post"
+      },
+      "CognitoBindRequest": {
+        "properties": {
+          "code": { "type": "string", "title": "Code", "description": "Authorization code returned by Cognito" }
+        },
+        "type": "object",
+        "required": ["code"],
+        "title": "CognitoBindRequest"
+      },
+      "ContentTagBrief": {
+        "properties": {
+          "id": { "type": "integer", "title": "Id" },
+          "name": { "type": "string", "title": "Name" },
+          "color": { "anyOf": [{ "type": "string" }, { "type": "null" }], "title": "Color" }
+        },
+        "type": "object",
+        "required": ["id", "name"],
+        "title": "ContentTagBrief",
+        "description": "Lightweight content tag summary used in playlist responses."
+      },
+      "FilterPresetCreateRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 128,
+            "title": "Name",
+            "description": "Display name for this preset"
+          },
+          "filter_string": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Filter String",
+            "description": "Query string fragment to append to the list endpoint (no leading ?)"
+          }
+        },
+        "type": "object",
+        "required": ["name", "filter_string"],
+        "title": "FilterPresetCreateRequest",
+        "description": "Payload to save a filter preset for the current user."
+      },
+      "FilterPresetListResponse": {
+        "properties": {
+          "items": {
+            "items": { "$ref": "#/components/schemas/FilterPresetResponse" },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": ["items"],
+        "title": "FilterPresetListResponse",
+        "description": "Collection of presets for a user/object type."
+      },
+      "FilterPresetResponse": {
+        "properties": {
+          "id": { "type": "string", "title": "Id" },
+          "name": { "type": "string", "title": "Name" },
+          "user_id": { "type": "integer", "title": "User Id" },
+          "object_type": { "type": "string", "title": "Object Type" },
+          "filter_string": { "type": "string", "title": "Filter String" },
+          "created_at": { "type": "string", "format": "date-time", "title": "Created At" },
+          "updated_at": { "type": "string", "format": "date-time", "title": "Updated At" }
+        },
+        "type": "object",
+        "required": ["id", "name", "user_id", "object_type", "filter_string", "created_at", "updated_at"],
+        "title": "FilterPresetResponse",
+        "description": "Preset representation returned from APIs."
+      },
+      "FolderCreateRequest": {
+        "properties": {
+          "name": { "type": "string", "title": "Name", "description": "Folder name (unique within the same parent)" },
+          "parent_folder_id": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Parent Folder Id",
+            "description": "Parent folder id; null to create at root level"
+          },
+          "sort_order": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Sort Order",
+            "description": "Ordering weight among siblings (lower comes first)",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": ["name"],
+        "title": "FolderCreateRequest",
+        "description": "Request payload to create a folder."
+      },
+      "FolderNode": {
+        "properties": {
+          "id": { "type": "integer", "title": "Id", "description": "Folder identifier" },
+          "name": { "type": "string", "title": "Name", "description": "Folder display name" },
+          "parent_folder_id": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Parent Folder Id",
+            "description": "Parent folder id; null for root-level nodes"
+          },
+          "sort_order": {
+            "type": "integer",
+            "title": "Sort Order",
+            "description": "Sibling ordering weight",
+            "default": 0
+          },
+          "is_system": {
+            "type": "boolean",
+            "title": "Is System",
+            "description": "True when folder is system-reserved",
+            "default": false
+          },
+          "deleted_at": {
+            "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }],
+            "title": "Deleted At",
+            "description": "Soft delete timestamp; null when active"
+          },
+          "children": {
+            "items": { "$ref": "#/components/schemas/FolderNode" },
+            "type": "array",
+            "title": "Children",
+            "description": "Nested child folders"
+          }
+        },
+        "type": "object",
+        "required": ["id", "name"],
+        "title": "FolderNode",
+        "description": "Tree node representation for folder listings."
+      },
+      "FolderTreeResponse": {
+        "properties": {
+          "items": {
+            "items": { "$ref": "#/components/schemas/FolderNode" },
+            "type": "array",
+            "title": "Items",
+            "description": "Top-level folder nodes"
+          }
+        },
+        "type": "object",
+        "required": ["items"],
+        "title": "FolderTreeResponse",
+        "description": "Folder tree for the current organisation/user."
+      },
+      "FolderUpdateRequest": {
+        "properties": {
+          "name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Name",
+            "description": "New folder name"
+          },
+          "parent_folder_id": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Parent Folder Id",
+            "description": "New parent folder id; null to move to root"
+          },
+          "sort_order": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Sort Order",
+            "description": "Updated sort order"
+          }
+        },
+        "type": "object",
+        "title": "FolderUpdateRequest",
+        "description": "Request payload to rename or move a folder."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": { "items": { "$ref": "#/components/schemas/ValidationError" }, "type": "array", "title": "Detail" }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "LoginRequest": {
+        "properties": {
+          "email": { "type": "string", "title": "Email", "description": "Registered email address" },
+          "password": { "type": "string", "minLength": 1, "title": "Password", "description": "Plaintext password" }
+        },
+        "type": "object",
+        "required": ["email", "password"],
+        "title": "LoginRequest",
+        "description": "Payload for local username/password authentication."
+      },
+      "LoginResponse": {
+        "properties": {
+          "access_token": { "type": "string", "title": "Access Token" },
+          "token_type": { "type": "string", "const": "bearer", "title": "Token Type", "default": "bearer" },
+          "user": { "$ref": "#/components/schemas/UserSummary" }
+        },
+        "type": "object",
+        "required": ["access_token", "user"],
+        "title": "LoginResponse",
+        "description": "Standard response body for all auth endpoints."
+      },
+      "MediaBrief": {
+        "properties": {
+          "id": { "type": "string", "title": "Id" },
+          "name": { "type": "string", "title": "Name" },
+          "thumbnail_url": { "anyOf": [{ "type": "string" }, { "type": "null" }], "title": "Thumbnail Url" }
+        },
+        "type": "object",
+        "required": ["id", "name"],
+        "title": "MediaBrief",
+        "description": "Minimal media representation embedded in playlist items."
+      },
+      "MediaDetail": {
+        "properties": {
+          "id": { "type": "string", "title": "Id", "description": "Media UUID (primary key and external id)" },
+          "name": { "type": "string", "title": "Name", "description": "Display name shown in the media library" },
+          "description": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Description",
+            "description": "Optional media description"
+          },
+          "media_type": {
+            "type": "string",
+            "enum": ["image", "video", "html", "zip", "other"],
+            "title": "Media Type",
+            "description": "Logical media type for filtering"
+          },
+          "folder_id": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Folder Id",
+            "description": "Folder id the media belongs to; null means root/uncategorised"
+          },
+          "thumbnail_key": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Thumbnail Key",
+            "description": "Object key for the thumbnail (e.g., Thumbnail/...)"
+          },
+          "thumbnail_url": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Thumbnail Url",
+            "description": "Public URL to access the thumbnail (if available)"
+          },
+          "width": {
+            "anyOf": [{ "type": "integer", "minimum": 1.0 }, { "type": "null" }],
+            "title": "Width",
+            "description": "Processed width in pixels; null when unknown"
+          },
+          "height": {
+            "anyOf": [{ "type": "integer", "minimum": 1.0 }, { "type": "null" }],
+            "title": "Height",
+            "description": "Processed height in pixels; null when unknown"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Creation timestamp"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "Last updated timestamp"
+          },
+          "deleted_at": {
+            "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }],
+            "title": "Deleted At",
+            "description": "Soft delete timestamp; null when active"
+          },
+          "tags": {
+            "items": { "$ref": "#/components/schemas/TagSummary" },
+            "type": "array",
+            "title": "Tags",
+            "description": "Tags attached to this media"
+          },
+          "upload_id": { "type": "string", "title": "Upload Id", "description": "Associated upload record id" },
+          "organisation_id": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Organisation Id",
+            "description": "Owning organisation id (if applicable)"
+          },
+          "owner_user_id": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Owner User Id",
+            "description": "User who created/uploaded the media"
+          },
+          "size_bytes": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Size Bytes",
+            "description": "File size in bytes"
+          },
+          "content_type": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Content Type",
+            "description": "MIME type of the object"
+          },
+          "status": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Status",
+            "description": "Processing status from the upload pipeline"
+          },
+          "object_key": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Object Key",
+            "description": "Key to the processed object (prefers Media/ path; falls back to current prefix)"
+          },
+          "object_url": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Object Url",
+            "description": "Public URL to the object"
+          },
+          "processed_key": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Processed Key",
+            "description": "Processed key as stored on the upload row"
+          },
+          "orientation": {
+            "anyOf": [{ "type": "string", "enum": ["portrait", "landscape", "square"] }, { "type": "null" }],
+            "title": "Orientation",
+            "description": "Derive orientation from width/height when both are present.\n\nReturns:\n    - \"landscape\" if width > height\n    - \"portrait\" if height > width\n    - \"square\" if equal\n    - None when width/height are missing",
+            "readOnly": true
+          }
+        },
+        "type": "object",
+        "required": ["id", "name", "media_type", "created_at", "updated_at", "upload_id", "orientation"],
+        "title": "MediaDetail",
+        "description": "Detailed media response including upload metadata."
+      },
+      "MediaItem": {
+        "properties": {
+          "id": { "type": "string", "title": "Id", "description": "Media UUID (primary key and external id)" },
+          "name": { "type": "string", "title": "Name", "description": "Display name shown in the media library" },
+          "description": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Description",
+            "description": "Optional media description"
+          },
+          "media_type": {
+            "type": "string",
+            "enum": ["image", "video", "html", "zip", "other"],
+            "title": "Media Type",
+            "description": "Logical media type for filtering"
+          },
+          "folder_id": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Folder Id",
+            "description": "Folder id the media belongs to; null means root/uncategorised"
+          },
+          "thumbnail_key": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Thumbnail Key",
+            "description": "Object key for the thumbnail (e.g., Thumbnail/...)"
+          },
+          "thumbnail_url": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Thumbnail Url",
+            "description": "Public URL to access the thumbnail (if available)"
+          },
+          "width": {
+            "anyOf": [{ "type": "integer", "minimum": 1.0 }, { "type": "null" }],
+            "title": "Width",
+            "description": "Processed width in pixels; null when unknown"
+          },
+          "height": {
+            "anyOf": [{ "type": "integer", "minimum": 1.0 }, { "type": "null" }],
+            "title": "Height",
+            "description": "Processed height in pixels; null when unknown"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Creation timestamp"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "Last updated timestamp"
+          },
+          "deleted_at": {
+            "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }],
+            "title": "Deleted At",
+            "description": "Soft delete timestamp; null when active"
+          },
+          "tags": {
+            "items": { "$ref": "#/components/schemas/TagSummary" },
+            "type": "array",
+            "title": "Tags",
+            "description": "Tags attached to this media"
+          },
+          "orientation": {
+            "anyOf": [{ "type": "string", "enum": ["portrait", "landscape", "square"] }, { "type": "null" }],
+            "title": "Orientation",
+            "description": "Derive orientation from width/height when both are present.\n\nReturns:\n    - \"landscape\" if width > height\n    - \"portrait\" if height > width\n    - \"square\" if equal\n    - None when width/height are missing",
+            "readOnly": true
+          }
+        },
+        "type": "object",
+        "required": ["id", "name", "media_type", "created_at", "updated_at", "orientation"],
+        "title": "MediaItem",
+        "description": "Media summary used for list responses."
+      },
+      "MediaListResponse": {
+        "properties": {
+          "items": {
+            "items": { "$ref": "#/components/schemas/MediaItem" },
+            "type": "array",
+            "title": "Items",
+            "description": "Media records for this page"
+          },
+          "total": { "type": "integer", "title": "Total", "description": "Total matching records for pagination" },
+          "page": { "type": "integer", "title": "Page", "description": "Current page number (1-based)" },
+          "page_size": { "type": "integer", "title": "Page Size", "description": "Page size used for this response" }
+        },
+        "type": "object",
+        "required": ["items", "total", "page", "page_size"],
+        "title": "MediaListResponse",
+        "description": "Paginated media list payload."
+      },
+      "MediaMoveRequest": {
+        "properties": {
+          "folder_id": { "type": "integer", "title": "Folder Id", "description": "Target folder id" },
+          "media_ids": {
+            "items": { "type": "string" },
+            "type": "array",
+            "minItems": 1,
+            "title": "Media Ids",
+            "description": "Array of media ids to move"
+          }
+        },
+        "type": "object",
+        "required": ["folder_id", "media_ids"],
+        "title": "MediaMoveRequest",
+        "description": "Batch move media into a folder."
+      },
+      "MediaUpdateRequest": {
+        "properties": {
+          "name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Name",
+            "description": "New display name"
+          },
+          "description": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Description",
+            "description": "New description text"
+          },
+          "folder_id": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Folder Id",
+            "description": "Move media into this folder (null to unset)"
+          },
+          "tag_ids": {
+            "anyOf": [{ "items": { "type": "integer" }, "type": "array" }, { "type": "null" }],
+            "title": "Tag Ids",
+            "description": "Replace media tag set with these tag ids"
+          },
+          "restore": {
+            "anyOf": [{ "type": "boolean" }, { "type": "null" }],
+            "title": "Restore",
+            "description": "When true, clears deleted_at to restore a soft-deleted media",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "MediaUpdateRequest",
+        "description": "Fields that can be updated on a media entity."
+      },
+      "MediaUploadResponse": {
+        "properties": {
+          "id": { "type": "string", "title": "Id", "description": "Upload record identifier (UUID)" },
+          "bucket": { "type": "string", "title": "Bucket", "description": "Destination S3 bucket name" },
+          "key": {
+            "type": "string",
+            "title": "Key",
+            "description": "Object key created inside the Unprocessed prefix"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Size Bytes",
+            "description": "Size of the uploaded file"
+          },
+          "content_type": { "type": "string", "title": "Content Type", "description": "Detected MIME type" },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "processing", "completed", "failed"],
+            "title": "Status",
+            "description": "Processing status within the ingestion pipeline",
+            "default": "pending"
+          },
+          "upload_type": {
+            "type": "string",
+            "enum": ["image", "video", "unknown"],
+            "title": "Upload Type",
+            "description": "Media category inferred from content type or suffix",
+            "default": "unknown"
+          },
+          "processed_key": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Processed Key",
+            "description": "Key of the processed asset under Media/ once Lambda completes"
+          },
+          "thumbnail_key": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Thumbnail Key",
+            "description": "Key of the generated thumbnail under Thumbnail/"
+          },
+          "folder_id": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Folder Id",
+            "description": "Target folder id captured at upload time (if provided)"
+          },
+          "media_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Media Id",
+            "description": "Identifier of the created media entity when processing is completed"
+          }
+        },
+        "type": "object",
+        "required": ["id", "bucket", "key", "size_bytes", "content_type"],
+        "title": "MediaUploadResponse",
+        "description": "Response payload returned after uploading media to S3."
+      },
+      "OrganisationProfile": {
+        "properties": {
+          "id": { "type": "integer", "title": "Id", "description": "Organisation id" },
+          "name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Name",
+            "description": "Organisation name"
+          },
+          "parent_id": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Parent Id",
+            "description": "Parent organisation id"
+          }
+        },
+        "type": "object",
+        "required": ["id"],
+        "title": "OrganisationProfile",
+        "description": "Basic organisation info returned in user profile."
+      },
+      "PlaylistCreate": {
+        "properties": {
+          "name": { "type": "string", "maxLength": 128, "title": "Name", "description": "Playlist display name" },
+          "description": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Description",
+            "description": "Optional playlist description"
+          },
+          "is_enabled": {
+            "type": "boolean",
+            "title": "Is Enabled",
+            "description": "Whether the playlist is enabled",
+            "default": true
+          },
+          "active_from": {
+            "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }],
+            "title": "Active From",
+            "description": "Optional start time when the playlist becomes active"
+          },
+          "active_to": {
+            "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }],
+            "title": "Active To",
+            "description": "Optional end time when the playlist expires"
+          },
+          "content_tag_ids": {
+            "items": { "type": "integer" },
+            "type": "array",
+            "title": "Content Tag Ids",
+            "description": "Content tags attached to this playlist"
+          },
+          "time_tag_ids": {
+            "items": { "type": "string" },
+            "type": "array",
+            "title": "Time Tag Ids",
+            "description": "Time tags attached to this playlist"
+          },
+          "items": {
+            "anyOf": [
+              { "items": { "$ref": "#/components/schemas/PlaylistItemCreateInPlaylist" }, "type": "array" },
+              { "type": "null" }
+            ],
+            "title": "Items",
+            "description": "Optional initial playlist items"
+          }
+        },
+        "type": "object",
+        "required": ["name"],
+        "title": "PlaylistCreate",
+        "description": "Request payload to create a playlist."
+      },
+      "PlaylistDetail": {
+        "properties": {
+          "id": { "type": "string", "title": "Id" },
+          "name": { "type": "string", "title": "Name" },
+          "description": { "anyOf": [{ "type": "string" }, { "type": "null" }], "title": "Description" },
+          "organisation_id": { "anyOf": [{ "type": "integer" }, { "type": "null" }], "title": "Organisation Id" },
+          "is_enabled": { "type": "boolean", "title": "Is Enabled" },
+          "active_from": {
+            "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }],
+            "title": "Active From"
+          },
+          "active_to": {
+            "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }],
+            "title": "Active To"
+          },
+          "content_tags": {
+            "items": { "$ref": "#/components/schemas/ContentTagBrief" },
+            "type": "array",
+            "title": "Content Tags"
+          },
+          "time_tags": {
+            "items": { "$ref": "#/components/schemas/TimeTagBrief" },
+            "type": "array",
+            "title": "Time Tags"
+          },
+          "created_at": { "type": "string", "format": "date-time", "title": "Created At" },
+          "updated_at": { "type": "string", "format": "date-time", "title": "Updated At" },
+          "items": { "items": { "$ref": "#/components/schemas/PlaylistItemRead" }, "type": "array", "title": "Items" }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "organisation_id",
+          "is_enabled",
+          "active_from",
+          "active_to",
+          "content_tags",
+          "time_tags",
+          "created_at",
+          "updated_at",
+          "items"
+        ],
+        "title": "PlaylistDetail",
+        "description": "Full playlist detail including items and tag associations."
+      },
+      "PlaylistItemCreateInPlaylist": {
+        "properties": {
+          "media_id": { "type": "string", "title": "Media Id" },
+          "duration_seconds": { "anyOf": [{ "type": "integer" }, { "type": "null" }], "title": "Duration Seconds" },
+          "is_enabled": { "type": "boolean", "title": "Is Enabled", "default": true },
+          "active_from": {
+            "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }],
+            "title": "Active From"
+          },
+          "active_to": {
+            "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }],
+            "title": "Active To"
+          },
+          "content_tag_ids": {
+            "anyOf": [{ "items": { "type": "integer" }, "type": "array" }, { "type": "null" }],
+            "title": "Content Tag Ids"
+          },
+          "time_tag_ids": {
+            "anyOf": [{ "items": { "type": "string" }, "type": "array" }, { "type": "null" }],
+            "title": "Time Tag Ids"
+          },
+          "insert_after_item_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Insert After Item Id"
+          }
+        },
+        "type": "object",
+        "required": ["media_id"],
+        "title": "PlaylistItemCreateInPlaylist",
+        "description": "Payload for creating an item while creating or updating a playlist.\n\n- content_tag_ids: None to copy media tags; [] to clear; otherwise explicit set.\n- time_tag_ids: None/[] to skip; otherwise explicit set.\n- insert_after_item_id: place the new item after this item; None appends to end."
+      },
+      "PlaylistItemRead": {
+        "properties": {
+          "id": { "type": "string", "title": "Id" },
+          "playlist_id": { "type": "string", "title": "Playlist Id" },
+          "media": { "$ref": "#/components/schemas/MediaBrief" },
+          "order_index": { "type": "integer", "title": "Order Index" },
+          "duration_seconds": { "anyOf": [{ "type": "integer" }, { "type": "null" }], "title": "Duration Seconds" },
+          "is_enabled": { "type": "boolean", "title": "Is Enabled" },
+          "active_from": {
+            "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }],
+            "title": "Active From"
+          },
+          "active_to": {
+            "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }],
+            "title": "Active To"
+          },
+          "content_tags": {
+            "items": { "$ref": "#/components/schemas/ContentTagBrief" },
+            "type": "array",
+            "title": "Content Tags"
+          },
+          "time_tags": {
+            "items": { "$ref": "#/components/schemas/TimeTagBrief" },
+            "type": "array",
+            "title": "Time Tags"
+          },
+          "created_at": { "type": "string", "format": "date-time", "title": "Created At" },
+          "updated_at": { "type": "string", "format": "date-time", "title": "Updated At" }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "playlist_id",
+          "media",
+          "order_index",
+          "duration_seconds",
+          "is_enabled",
+          "active_from",
+          "active_to",
+          "content_tags",
+          "time_tags",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "PlaylistItemRead",
+        "description": "Full playlist item detail."
+      },
+      "PlaylistItemUpdate": {
+        "properties": {
+          "duration_seconds": { "anyOf": [{ "type": "integer" }, { "type": "null" }], "title": "Duration Seconds" },
+          "is_enabled": { "anyOf": [{ "type": "boolean" }, { "type": "null" }], "title": "Is Enabled" },
+          "active_from": {
+            "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }],
+            "title": "Active From"
+          },
+          "active_to": {
+            "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }],
+            "title": "Active To"
+          },
+          "content_tag_ids": {
+            "anyOf": [{ "items": { "type": "integer" }, "type": "array" }, { "type": "null" }],
+            "title": "Content Tag Ids"
+          },
+          "time_tag_ids": {
+            "anyOf": [{ "items": { "type": "string" }, "type": "array" }, { "type": "null" }],
+            "title": "Time Tag Ids"
+          }
+        },
+        "type": "object",
+        "title": "PlaylistItemUpdate",
+        "description": "Partial update for a playlist item."
+      },
+      "PlaylistItemsReorderRequest": {
+        "properties": {
+          "item_ids_in_order": { "items": { "type": "string" }, "type": "array", "title": "Item Ids In Order" }
+        },
+        "type": "object",
+        "required": ["item_ids_in_order"],
+        "title": "PlaylistItemsReorderRequest",
+        "description": "Payload for reordering items within a playlist."
+      },
+      "PlaylistListItem": {
+        "properties": {
+          "id": { "type": "string", "title": "Id" },
+          "name": { "type": "string", "title": "Name" },
+          "description": { "anyOf": [{ "type": "string" }, { "type": "null" }], "title": "Description" },
+          "organisation_id": { "anyOf": [{ "type": "integer" }, { "type": "null" }], "title": "Organisation Id" },
+          "is_enabled": { "type": "boolean", "title": "Is Enabled" },
+          "active_from": {
+            "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }],
+            "title": "Active From"
+          },
+          "active_to": {
+            "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }],
+            "title": "Active To"
+          },
+          "item_count": { "type": "integer", "title": "Item Count" },
+          "content_tags": {
+            "items": { "$ref": "#/components/schemas/ContentTagBrief" },
+            "type": "array",
+            "title": "Content Tags"
+          },
+          "time_tags": {
+            "items": { "$ref": "#/components/schemas/TimeTagBrief" },
+            "type": "array",
+            "title": "Time Tags"
+          },
+          "created_at": { "type": "string", "format": "date-time", "title": "Created At" },
+          "updated_at": { "type": "string", "format": "date-time", "title": "Updated At" }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "organisation_id",
+          "is_enabled",
+          "active_from",
+          "active_to",
+          "item_count",
+          "content_tags",
+          "time_tags",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "PlaylistListItem",
+        "description": "List view of a playlist with tag summaries and item count."
+      },
+      "PlaylistListResponse": {
+        "properties": {
+          "items": { "items": { "$ref": "#/components/schemas/PlaylistListItem" }, "type": "array", "title": "Items" },
+          "total": { "type": "integer", "title": "Total" },
+          "page": { "type": "integer", "title": "Page" },
+          "page_size": { "type": "integer", "title": "Page Size" }
+        },
+        "type": "object",
+        "required": ["items", "total", "page", "page_size"],
+        "title": "PlaylistListResponse",
+        "description": "Paginated playlist list response."
+      },
+      "PlaylistUpdate": {
+        "properties": {
+          "name": { "anyOf": [{ "type": "string", "maxLength": 128 }, { "type": "null" }], "title": "Name" },
+          "description": { "anyOf": [{ "type": "string" }, { "type": "null" }], "title": "Description" },
+          "is_enabled": { "anyOf": [{ "type": "boolean" }, { "type": "null" }], "title": "Is Enabled" },
+          "active_from": {
+            "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }],
+            "title": "Active From"
+          },
+          "active_to": {
+            "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }],
+            "title": "Active To"
+          },
+          "content_tag_ids": {
+            "anyOf": [{ "items": { "type": "integer" }, "type": "array" }, { "type": "null" }],
+            "title": "Content Tag Ids"
+          },
+          "time_tag_ids": {
+            "anyOf": [{ "items": { "type": "string" }, "type": "array" }, { "type": "null" }],
+            "title": "Time Tag Ids"
+          }
+        },
+        "type": "object",
+        "title": "PlaylistUpdate",
+        "description": "Request payload to update playlist metadata and tag associations."
+      },
+      "TagCreateRequest": {
+        "properties": {
+          "name": { "type": "string", "title": "Name", "description": "Tag name" },
+          "description": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Description",
+            "description": "Optional tag description/notes"
+          },
+          "color": {
+            "anyOf": [{ "type": "string", "pattern": "^#?[0-9A-Fa-f]{6}$" }, { "type": "null" }],
+            "title": "Color",
+            "description": "Optional display color (hex, e.g., #RRGGBB)"
+          }
+        },
+        "type": "object",
+        "required": ["name"],
+        "title": "TagCreateRequest",
+        "description": "Payload to create a tag."
+      },
+      "TagDetailResponse": {
+        "properties": {
+          "id": { "type": "integer", "title": "Id", "description": "Tag identifier" },
+          "name": { "type": "string", "title": "Name", "description": "Tag name" },
+          "description": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Description",
+            "description": "Optional tag description/notes"
+          },
+          "color": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Color",
+            "description": "Optional display color"
+          },
+          "organisation_id": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Organisation Id",
+            "description": "Owning organisation; null when global"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Creation timestamp (server clock)"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "Last update timestamp (server clock)"
+          },
+          "deleted_at": {
+            "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }],
+            "title": "Deleted At",
+            "description": "Soft delete timestamp; null when active"
+          },
+          "tag_type": {
+            "type": "string",
+            "enum": ["content", "time"],
+            "title": "Tag Type",
+            "description": "Tag type/category"
+          },
+          "usage_counts": {
+            "$ref": "#/components/schemas/TagUsageCounts",
+            "description": "Aggregated usage counts for the tag"
+          }
+        },
+        "type": "object",
+        "required": ["id", "name", "created_at", "updated_at", "tag_type", "usage_counts"],
+        "title": "TagDetailResponse",
+        "description": "Full tag detail including type and usage counts."
+      },
+      "TagListResponse": {
+        "properties": {
+          "items": {
+            "items": { "$ref": "#/components/schemas/TagResponse" },
+            "type": "array",
+            "title": "Items",
+            "description": "List of tag definitions"
+          },
+          "total": { "type": "integer", "title": "Total", "description": "Total number of pages" },
+          "page": { "type": "integer", "title": "Page", "description": "Current page number (1-based)" },
+          "page_size": { "type": "integer", "title": "Page Size", "description": "Page size used for this response" }
+        },
+        "type": "object",
+        "required": ["items", "total", "page", "page_size"],
+        "title": "TagListResponse",
+        "description": "Paginated collection of tags."
+      },
+      "TagResponse": {
+        "properties": {
+          "id": { "type": "integer", "title": "Id", "description": "Tag identifier" },
+          "name": { "type": "string", "title": "Name", "description": "Tag name" },
+          "description": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Description",
+            "description": "Optional tag description/notes"
+          },
+          "color": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Color",
+            "description": "Optional display color"
+          },
+          "organisation_id": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Organisation Id",
+            "description": "Owning organisation; null when global"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Creation timestamp (server clock)"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "Last update timestamp (server clock)"
+          },
+          "deleted_at": {
+            "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }],
+            "title": "Deleted At",
+            "description": "Soft delete timestamp; null when active"
+          }
+        },
+        "type": "object",
+        "required": ["id", "name", "created_at", "updated_at"],
+        "title": "TagResponse",
+        "description": "Full tag definition payload."
+      },
+      "TagSummary": {
+        "properties": {
+          "id": { "type": "integer", "title": "Id" },
+          "name": { "type": "string", "title": "Name" },
+          "color": { "anyOf": [{ "type": "string" }, { "type": "null" }], "title": "Color" }
+        },
+        "type": "object",
+        "required": ["id", "name"],
+        "title": "TagSummary",
+        "description": "Lightweight tag representation used in media responses."
+      },
+      "TagUpdateRequest": {
+        "properties": {
+          "name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Name",
+            "description": "Updated tag name"
+          },
+          "description": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Description",
+            "description": "Updated tag description/notes"
+          },
+          "color": {
+            "anyOf": [{ "type": "string", "pattern": "^#?[0-9A-Fa-f]{6}$" }, { "type": "null" }],
+            "title": "Color",
+            "description": "Updated display color (hex, e.g., #RRGGBB)"
+          }
+        },
+        "type": "object",
+        "title": "TagUpdateRequest",
+        "description": "Editable fields for an existing tag."
+      },
+      "TagUsageCounts": {
+        "properties": {
+          "media": {
+            "type": "integer",
+            "title": "Media",
+            "description": "Number of media items using this tag",
+            "default": 0
+          },
+          "playlists": {
+            "type": "integer",
+            "title": "Playlists",
+            "description": "Number of playlists using this tag",
+            "default": 0
+          },
+          "devices": {
+            "type": "integer",
+            "title": "Devices",
+            "description": "Number of devices using this tag",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "TagUsageCounts",
+        "description": "Usage counts for a tag across entity types."
+      },
+      "TagUsageResponse": {
+        "properties": {
+          "tag_id": { "type": "integer", "title": "Tag Id", "description": "Tag identifier" },
+          "media_ids": {
+            "items": { "type": "string" },
+            "type": "array",
+            "title": "Media Ids",
+            "description": "Media ids that reference this tag"
+          },
+          "playlist_ids": {
+            "items": { "type": "integer" },
+            "type": "array",
+            "title": "Playlist Ids",
+            "description": "Playlist ids that reference this tag"
+          },
+          "device_ids": {
+            "items": { "type": "integer" },
+            "type": "array",
+            "title": "Device Ids",
+            "description": "Device ids that reference this tag"
+          }
+        },
+        "type": "object",
+        "required": ["tag_id"],
+        "title": "TagUsageResponse",
+        "description": "Where a tag is referenced."
+      },
+      "TimeTagBrief": {
+        "properties": { "id": { "type": "string", "title": "Id" }, "name": { "type": "string", "title": "Name" } },
+        "type": "object",
+        "required": ["id", "name"],
+        "title": "TimeTagBrief",
+        "description": "Lightweight time tag summary used in playlist responses."
+      },
+      "TimeTagCreate": {
+        "properties": {
+          "name": { "type": "string", "maxLength": 64, "title": "Name" },
+          "description": { "anyOf": [{ "type": "string" }, { "type": "null" }], "title": "Description" },
+          "is_active": { "type": "boolean", "title": "Is Active", "default": true },
+          "organisation_id": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Organisation Id",
+            "description": "Owning organisation; null means global/system"
+          },
+          "color": {
+            "anyOf": [{ "type": "string", "pattern": "^#?[0-9A-Fa-f]{6}$" }, { "type": "null" }],
+            "title": "Color",
+            "description": "Optional display color (hex, e.g., #RRGGBB)"
+          },
+          "windows": {
+            "items": { "$ref": "#/components/schemas/TimeTagWindowCreate" },
+            "type": "array",
+            "title": "Windows"
+          }
+        },
+        "type": "object",
+        "required": ["name", "windows"],
+        "title": "TimeTagCreate",
+        "description": "Payload to create a time tag with its windows."
+      },
+      "TimeTagListResponse": {
+        "properties": {
+          "items": { "items": { "$ref": "#/components/schemas/TimeTagRead" }, "type": "array", "title": "Items" },
+          "total": { "type": "integer", "title": "Total", "description": "Total number of pages" },
+          "page": { "type": "integer", "title": "Page" },
+          "page_size": { "type": "integer", "title": "Page Size" }
+        },
+        "type": "object",
+        "required": ["items", "total", "page", "page_size"],
+        "title": "TimeTagListResponse",
+        "description": "Paginated time tag list."
+      },
+      "TimeTagRead": {
+        "properties": {
+          "id": { "type": "string", "title": "Id" },
+          "name": { "type": "string", "title": "Name" },
+          "description": { "anyOf": [{ "type": "string" }, { "type": "null" }], "title": "Description" },
+          "is_active": { "type": "boolean", "title": "Is Active" },
+          "organisation_id": {
+            "anyOf": [{ "type": "integer" }, { "type": "null" }],
+            "title": "Organisation Id",
+            "description": "Owning organisation; null means global/system"
+          },
+          "color": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Color",
+            "description": "Optional display color"
+          },
+          "created_at": { "type": "string", "format": "date-time", "title": "Created At" },
+          "updated_at": { "type": "string", "format": "date-time", "title": "Updated At" },
+          "windows": {
+            "items": { "$ref": "#/components/schemas/TimeTagWindowRead" },
+            "type": "array",
+            "title": "Windows"
+          }
+        },
+        "type": "object",
+        "required": ["id", "name", "description", "is_active", "created_at", "updated_at", "windows"],
+        "title": "TimeTagRead",
+        "description": "Full time tag detail including windows."
+      },
+      "TimeTagUpdate": {
+        "properties": {
+          "name": { "anyOf": [{ "type": "string", "maxLength": 64 }, { "type": "null" }], "title": "Name" },
+          "description": { "anyOf": [{ "type": "string" }, { "type": "null" }], "title": "Description" },
+          "is_active": { "anyOf": [{ "type": "boolean" }, { "type": "null" }], "title": "Is Active" },
+          "windows": {
+            "anyOf": [
+              { "items": { "$ref": "#/components/schemas/TimeTagWindowCreate" }, "type": "array" },
+              { "type": "null" }
+            ],
+            "title": "Windows"
+          },
+          "color": {
+            "anyOf": [{ "type": "string", "pattern": "^#?[0-9A-Fa-f]{6}$" }, { "type": "null" }],
+            "title": "Color",
+            "description": "Optional display color (hex, e.g., #RRGGBB)"
+          }
+        },
+        "type": "object",
+        "title": "TimeTagUpdate",
+        "description": "Payload to update a time tag (partial)."
+      },
+      "TimeTagWindowCreate": {
+        "properties": {
+          "days_of_week": {
+            "items": { "type": "integer" },
+            "type": "array",
+            "title": "Days Of Week",
+            "description": "List of days 0=Monday ... 6=Sunday (at least one value)",
+            "examples": [[0, 1, 2, 3, 4]]
+          },
+          "start_time": {
+            "type": "string",
+            "pattern": "^\\d{2}:\\d{2}$",
+            "format": "time",
+            "title": "Start Time",
+            "description": "Start time in HH:MM (minute precision, local time)",
+            "examples": ["10:45"]
+          },
+          "end_time": {
+            "type": "string",
+            "pattern": "^\\d{2}:\\d{2}$",
+            "format": "time",
+            "title": "End Time",
+            "description": "End time in HH:MM (must be after start_time, local time)",
+            "examples": ["12:00"]
+          }
+        },
+        "type": "object",
+        "required": ["days_of_week", "start_time", "end_time"],
+        "title": "TimeTagWindowCreate",
+        "description": "Window payload used on create/update (full replacement)."
+      },
+      "TimeTagWindowRead": {
+        "properties": {
+          "days_of_week": {
+            "items": { "type": "integer" },
+            "type": "array",
+            "title": "Days Of Week",
+            "description": "List of days 0=Monday ... 6=Sunday (at least one value)",
+            "examples": [[0, 1, 2, 3, 4]]
+          },
+          "start_time": {
+            "type": "string",
+            "pattern": "^\\d{2}:\\d{2}$",
+            "title": "Start Time",
+            "description": "Start time in HH:MM (minute precision, local time)",
+            "examples": ["10:45"]
+          },
+          "end_time": {
+            "type": "string",
+            "pattern": "^\\d{2}:\\d{2}$",
+            "title": "End Time",
+            "description": "End time in HH:MM (must be after start_time, local time)",
+            "examples": ["12:00"]
+          },
+          "id": { "type": "string", "title": "Id" }
+        },
+        "type": "object",
+        "required": ["days_of_week", "start_time", "end_time", "id"],
+        "title": "TimeTagWindowRead",
+        "description": "Window returned from read endpoints."
+      },
+      "UploadNotifyRequest": {
+        "properties": {
+          "upload_id": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Upload Id",
+            "description": "Upload record id; preferred identifier for correlating the upload"
+          },
+          "original_key": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Original Key",
+            "description": "Unprocessed object key; used as a fallback to locate the record"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["processing", "completed", "failed"],
+            "title": "Status",
+            "description": "Processing state reported by Lambda"
+          },
+          "processed_key": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Processed Key",
+            "description": "Final processed key under Media/"
+          },
+          "thumbnail_key": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Thumbnail Key",
+            "description": "Thumbnail key under Thumbnail/"
+          },
+          "error_message": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Error Message",
+            "description": "Error details if failed"
+          },
+          "upload_type": {
+            "anyOf": [{ "type": "string", "enum": ["image", "video", "unknown"] }, { "type": "null" }],
+            "title": "Upload Type",
+            "description": "Optional override of inferred upload type"
+          },
+          "width": {
+            "anyOf": [{ "type": "integer", "minimum": 1.0 }, { "type": "null" }],
+            "title": "Width",
+            "description": "Processed width in pixels (optional metadata)"
+          },
+          "height": {
+            "anyOf": [{ "type": "integer", "minimum": 1.0 }, { "type": "null" }],
+            "title": "Height",
+            "description": "Processed height in pixels (optional metadata)"
+          },
+          "duration_seconds": {
+            "anyOf": [{ "type": "integer", "minimum": 0.0 }, { "type": "null" }],
+            "title": "Duration Seconds",
+            "description": "Duration in seconds for video content"
+          },
+          "file_hash": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "File Hash",
+            "description": "Optional file hash returned by the processor"
+          }
+        },
+        "type": "object",
+        "required": ["status"],
+        "title": "UploadNotifyRequest",
+        "description": "Payload sent by Lambda to report processing results."
+      },
+      "UserProfile": {
+        "properties": {
+          "id": { "type": "integer", "title": "Id", "description": "User id" },
+          "email": { "type": "string", "title": "Email", "description": "Primary email/login" },
+          "username": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Username",
+            "description": "Legacy username"
+          },
+          "full_name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Full Name",
+            "description": "Display/full name"
+          },
+          "organisation": {
+            "anyOf": [{ "$ref": "#/components/schemas/OrganisationProfile" }, { "type": "null" }],
+            "description": "Organisation info; null when user has no org"
+          }
+        },
+        "type": "object",
+        "required": ["id", "email"],
+        "title": "UserProfile",
+        "description": "Current user profile, including organisation summary."
+      },
+      "UserSummary": {
+        "properties": { "id": { "type": "integer", "title": "Id" }, "email": { "type": "string", "title": "Email" } },
+        "type": "object",
+        "required": ["id", "email"],
+        "title": "UserSummary",
+        "description": "Minimal user info returned after successful authentication."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": { "anyOf": [{ "type": "string" }, { "type": "integer" }] },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": { "type": "string", "title": "Message" },
+          "type": { "type": "string", "title": "Error Type" }
+        },
+        "type": "object",
+        "required": ["loc", "msg", "type"],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": { "HTTPBearer": { "type": "http", "scheme": "bearer" } }
+  }
+}

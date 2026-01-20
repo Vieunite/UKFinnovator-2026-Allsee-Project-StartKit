@@ -1,0 +1,7 @@
+export { default as Table } from './Table'
+export { default as TableBody } from './TableBody'
+export { default as TableHead } from './TableHead'
+export { default as TableHeadRow } from './TableHeadRow'
+export { default as TableRow } from './TableRow'
+export { default as TD } from './TD'
+export { default as TH } from './TH'
