@@ -38,7 +38,6 @@ const AccountMenuButton = () => {
 
   const handleSettings = () => {
     // Add your settings navigation logic here
-    console.log('Settings clicked')
   }
 
   return (

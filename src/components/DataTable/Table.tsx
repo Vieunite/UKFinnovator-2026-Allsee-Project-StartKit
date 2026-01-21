@@ -2,6 +2,8 @@
 
 import { ActiveBetweenModal } from '@/components/ActiveBetweenModal'
 import { Table, TableBody, TableHead, TableHeadRow, TableRow, TD, TH } from '@/components/table/CustomTable'
+import { useConfirm } from '@/context/ConfirmContext'
+import { useOrganisation } from '@/context/OrganisationContext'
 import { ActiveBetween, DeviceMedia, Entity, getTagColor, TimeTag } from '@/data'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import type { Components } from '@/types/openapi'
@@ -147,7 +149,6 @@ const TagsCell = React.memo(
     // Show button on mobile or after hover delay on desktop
     const showAddButton = isMobile || isHovered
 
-    console.log('tagValues', tagValues)
     // Separate displayed tags from hidden tags
     const displayedTags = tagValues.slice(0, MAX_DISPLAYED_TAGS)
     const remainingCount = tagValues.length - MAX_DISPLAYED_TAGS
@@ -681,6 +682,16 @@ export const TableComponent: React.FC<TableProps> = ({
     itemName: string
   } | null>(null)
 
+  const [licenceRenewalModalOpen, setLicenceRenewalModalOpen] = useState<{
+    itemId: string
+    itemName: string
+    currentExpiry: Date | null
+  } | null>(null)
+
+  const [selectedDuration, setSelectedDuration] = useState<string>('1 year')
+  const confirm = useConfirm()
+  const { selectedOrganisation } = useOrganisation()
+
   const closeImagePreview = useCallback(() => {
     setImagePreviewUrl(null)
   }, [])
@@ -705,6 +716,77 @@ export const TableComponent: React.FC<TableProps> = ({
     },
     [onUpdateField]
   )
+
+  const handleOpenLicenceRenewalModal = useCallback((itemId: string, itemName: string, currentExpiry: Date | null) => {
+    setLicenceRenewalModalOpen({ itemId, itemName, currentExpiry })
+    setSelectedDuration('1 year')
+  }, [])
+
+  const handleCloseLicenceRenewalModal = useCallback(() => {
+    setLicenceRenewalModalOpen(null)
+    setSelectedDuration('1 year')
+  }, [])
+
+  const calculateNewExpiryDate = useCallback((duration: string): Date => {
+    const today = new Date()
+    const newDate = new Date(today)
+
+    switch (duration) {
+      case '3 months':
+        newDate.setMonth(today.getMonth() + 3)
+        break
+      case '6 months':
+        newDate.setMonth(today.getMonth() + 6)
+        break
+      case '1 year':
+        newDate.setFullYear(today.getFullYear() + 1)
+        break
+      case '2 years':
+        newDate.setFullYear(today.getFullYear() + 2)
+        break
+      case '3 years':
+        newDate.setFullYear(today.getFullYear() + 3)
+        break
+      default:
+        newDate.setFullYear(today.getFullYear() + 1)
+    }
+
+    return newDate
+  }, [])
+
+  const handleRenewLicence = useCallback(async () => {
+    if (!licenceRenewalModalOpen) return
+
+    const newExpiryDate = calculateNewExpiryDate(selectedDuration)
+    const currentExpiry = licenceRenewalModalOpen.currentExpiry
+    const willExpireSooner = currentExpiry && newExpiryDate < currentExpiry
+
+    let description = `Are you sure you want to renew the licence for "${licenceRenewalModalOpen.itemName}"?`
+    description += `\n\nThe licence will expire on ${formatDate(newExpiryDate.toISOString())}.`
+
+    if (willExpireSooner && currentExpiry) {
+      description += `\n\n⚠️ Warning: This will make the licence expire sooner than the current expiry date of ${formatDate(currentExpiry.toISOString())}.`
+    }
+
+    const shouldRenew = await confirm({
+      title: 'Renew Licence',
+      description,
+      confirmText: 'Renew Licence',
+      cancelText: 'Cancel',
+    })
+
+    if (shouldRenew && onUpdateField) {
+      onUpdateField(licenceRenewalModalOpen.itemId, 'licence_expiry', newExpiryDate)
+      handleCloseLicenceRenewalModal()
+    }
+  }, [
+    licenceRenewalModalOpen,
+    selectedDuration,
+    calculateNewExpiryDate,
+    confirm,
+    onUpdateField,
+    handleCloseLicenceRenewalModal,
+  ])
 
   useEffect(() => {
     const handlePressEscape = (e: KeyboardEvent) => {
@@ -919,9 +1001,12 @@ export const TableComponent: React.FC<TableProps> = ({
             <TD key={field}>
               <span className="flex flex-col">
                 <p>{licenceCode}</p>
-                <p className="whitespace-nowrap text-[10px] italic leading-3 text-gray-500 dark:text-gray-400">
+                <button
+                  onClick={() => handleOpenLicenceRenewalModal(item.id, item.name, expiryDate)}
+                  className="whitespace-nowrap rounded p-1 text-left text-[10px] italic leading-3 text-blue-500 transition-colors hover:bg-blue-100 hover:text-blue-700 dark:text-blue-400 dark:hover:bg-blue-700 dark:hover:text-blue-300"
+                >
                   Exp: {formattedExpiry}
-                </p>
+                </button>
               </span>
             </TD>
           )
@@ -1149,6 +1234,7 @@ export const TableComponent: React.FC<TableProps> = ({
       onRemoveTag,
       minimiseTags,
       handleOpenActiveBetweenModal,
+      handleOpenLicenceRenewalModal,
     ]
   )
 
@@ -1293,6 +1379,106 @@ export const TableComponent: React.FC<TableProps> = ({
           }}
         />
       )}
+
+      {licenceRenewalModalOpen &&
+        typeof window !== 'undefined' &&
+        createPortal(
+          <AnimatePresence>
+            {licenceRenewalModalOpen && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 bg-black/20"
+                  onClick={handleCloseLicenceRenewalModal}
+                />
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.2 }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="relative z-10 w-full max-w-md rounded-lg border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800"
+                >
+                  <div
+                    className="border-b border-gray-200 px-4 py-3 dark:border-gray-700"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Renew Licence</h3>
+                        <h4 className="text-sm text-gray-500 dark:text-gray-400">{licenceRenewalModalOpen.itemName}</h4>
+                      </div>
+                      <button
+                        onClick={handleCloseLicenceRenewalModal}
+                        className="rounded p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+                      >
+                        <XMarkIcon className="h-5 w-5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="p-4" onClick={(e) => e.stopPropagation()}>
+                    {selectedOrganisation?.id === 'allsee-birmingham' ? (
+                      <div className="space-y-4">
+                        <div className="rounded-lg bg-red-50 p-4 text-center dark:bg-red-900/20">
+                          <p className="text-sm font-medium text-red-800 dark:text-red-400">
+                            You do not have permission to renew licence.
+                          </p>
+                        </div>
+                        <button
+                          onClick={handleCloseLicenceRenewalModal}
+                          className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                        >
+                          Close
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div>
+                          <label
+                            htmlFor="licenceDuration"
+                            className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400"
+                          >
+                            Select licence duration
+                          </label>
+                          <select
+                            id="licenceDuration"
+                            value={selectedDuration}
+                            onChange={(e) => setSelectedDuration(e.target.value)}
+                            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none transition-all focus:border-primary focus:ring-1 focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:text-textDarkMode"
+                          >
+                            <option value="3 months">3 months</option>
+                            <option value="6 months">6 months</option>
+                            <option value="1 year">1 year</option>
+                            <option value="2 years">2 years</option>
+                            <option value="3 years">3 years</option>
+                          </select>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={handleCloseLicenceRenewalModal}
+                            className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={handleRenewLicence}
+                            className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary/90"
+                          >
+                            Renew Licence
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>,
+          document.body
+        )}
     </>
   )
 }

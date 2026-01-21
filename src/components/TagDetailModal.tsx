@@ -25,7 +25,6 @@ export const TagDetailModal: React.FC<TagDetailModalProps> = ({ open, onClose, t
   } = useContentTagDetail(tagType === 'content' ? (tagId as number) : 0, {
     enabled: open && tagType === 'content' && tagId !== null,
   })
-  console.log('contentTagDetail', contentTagDetail)
 
   const {
     data: timeTagDetail,
@@ -34,7 +33,6 @@ export const TagDetailModal: React.FC<TagDetailModalProps> = ({ open, onClose, t
   } = useTimeTagDetail(tagType === 'time' ? (tagId as string) : '', {
     enabled: open && tagType === 'time' && tagId !== null,
   })
-  console.log('timeTagDetail', timeTagDetail)
 
   const isLoading = tagType === 'content' ? contentTagLoading : timeTagLoading
   const error = tagType === 'content' ? contentTagError : timeTagError

@@ -61,7 +61,6 @@ export const TimeTagManagerModal: React.FC<TimeTagManagerModalProps> = ({
 
   // Fetch time tags when modal opens
   const { data: timeTagsData, isLoading: isLoadingTags } = useTimeTags({}, { enabled: open })
-  console.log('timeTagsData', timeTagsData)
 
   // Create and update mutation hooks
   const createTimeTagMutation = useCreateTimeTag()

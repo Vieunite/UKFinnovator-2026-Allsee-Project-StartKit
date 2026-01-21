@@ -118,7 +118,6 @@ const DevicesGraph = ({ devices, loading }: DevicesGraphProps) => {
   }
 
   const chartData = prepareChartData()
-  console.log('chartData', chartData)
 
   const handleViewAll = () => {
     const filters: FilterState[] = [{ field: 'status', value: 'online', type: 'status' }]
@@ -147,7 +146,7 @@ const DevicesGraph = ({ devices, loading }: DevicesGraphProps) => {
   }
 
   return (
-    <div className="dark:text-textDarkMode text-textLightMode flex h-full min-h-[180px] w-full flex-col rounded-lg bg-white p-3 shadow-md lg:p-2 dark:bg-gray-800">
+    <div className="flex h-full min-h-[180px] w-full flex-col rounded-lg bg-white p-3 text-textLightMode shadow-md dark:bg-gray-800 dark:text-textDarkMode lg:p-2">
       <div className="flex items-center justify-between gap-2 font-medium">
         <h3 className="text-sm lg:text-base">Online Devices</h3>
         <PrimaryButton className="text-xs" onClick={handleViewAll}>
@@ -164,7 +163,7 @@ const DevicesGraph = ({ devices, loading }: DevicesGraphProps) => {
           <div className="flex h-full min-h-[100px] flex-1 flex-col gap-2">
             {/* Chart Container - Responsive */}
             <div className="relative flex h-full flex-1 gap-1 lg:h-48 lg:gap-2">
-              <div className="flex h-full w-6 flex-col justify-between text-xs text-gray-500 lg:w-8 dark:text-gray-400">
+              <div className="flex h-full w-6 flex-col justify-between text-xs text-gray-500 dark:text-gray-400 lg:w-8">
                 <span>100%</span>
                 <span>50%</span>
                 <span>0%</span>
@@ -193,7 +192,7 @@ const DevicesGraph = ({ devices, loading }: DevicesGraphProps) => {
                 {chartData.map((item) => (
                   <div
                     key={item.id}
-                    className="w-full max-w-full text-center text-xs leading-tight text-gray-600 lg:max-w-[60px] dark:text-gray-300"
+                    className="w-full max-w-full text-center text-xs leading-tight text-gray-600 dark:text-gray-300 lg:max-w-[60px]"
                   >
                     <div className="truncate" title={item.name}>
                       {item.name}

@@ -1,5 +1,6 @@
 'use client'
 
+import { useAuth } from '@/context/AuthContext'
 import Image from 'next/image'
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 
@@ -22,27 +23,21 @@ interface OrganisationContextType {
 
 const OrganisationContext = createContext<OrganisationContextType | undefined>(undefined)
 
-// Initial organisations - PMI as the first organisation
+// Initial organisations - Allsee Technologies as the parent organisation
 export const initialOrganisations: Organisation[] = [
   {
-    id: 'pmi',
-    name: 'Philip Morris International',
-    logo: '/images/pmi_logo.png',
-    primaryColor: '#0077c3',
+    id: 'allsee-technologies',
+    name: 'Allsee Technologies',
+    primaryColor: '#329FD9',
     children: [
       {
-        id: 'pmi-morrisons',
-        name: 'Morrisons',
-        logo: '/images/Morrisons-Logo.png',
-        primaryColor: '#00563F',
-      },
-      {
-        id: 'pmi-sainsburys',
-        name: 'Sainsburys',
-        logo: `/images/Sainsbury's_Logo.png`,
-        primaryColor: '#F06C00',
+        id: 'allsee-birmingham',
+        name: 'Allsee Birmingham',
+        primaryColor: '#EF5124',
+        logo: '/svgs/allsee-logo-colour.svg',
       },
     ],
+    logo: '/svgs/allsee-logo-colour.svg',
   },
 ]
 
@@ -102,6 +97,7 @@ export const OrganisationProvider = ({ children }: { children: React.ReactNode }
   const [organisations] = useState<Organisation[]>(initialOrganisations)
   const [selectedOrganisation, setSelectedOrganisationState] = useState<Organisation | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(true)
+  const { user } = useAuth() // AuthProvider wraps OrganisationProvider, so this is safe
 
   // Helper to find organisation by ID (memoized for use in useEffect)
   const getOrganisationById = useCallback(
@@ -121,7 +117,7 @@ export const OrganisationProvider = ({ children }: { children: React.ReactNode }
     [organisations]
   )
 
-  // Load organisation from localStorage on mount
+  // Load organisation from localStorage on mount, but prioritize user's organization
   useEffect(() => {
     if (typeof window === 'undefined') {
       setIsLoading(false)
@@ -129,15 +125,44 @@ export const OrganisationProvider = ({ children }: { children: React.ReactNode }
     }
 
     try {
+      // If user is logged in, use their organizationId as the default
+      if (user?.organisationId) {
+        const userOrg = getOrganisationById(user.organisationId)
+        if (userOrg) {
+          setSelectedOrganisationState(userOrg)
+          // Also update localStorage to persist this selection
+          localStorage.setItem('selectedOrganisationId', userOrg.id)
+          setTimeout(() => {
+            setIsLoading(false)
+          }, 500)
+          return
+        }
+      }
+
+      // If no user or user org not found, check localStorage
       const storedOrgId = localStorage.getItem('selectedOrganisationId')
       if (storedOrgId) {
         const foundOrg = getOrganisationById(storedOrgId)
         if (foundOrg) {
-          setSelectedOrganisationState(foundOrg)
+          // Validate: if user is Birmingham, they can't have Technologies selected
+          if (user?.organisationId === 'allsee-birmingham' && storedOrgId === 'allsee-technologies') {
+            // Invalid selection for Birmingham user, use their org instead
+            const userOrg = getOrganisationById('allsee-birmingham')
+            if (userOrg) {
+              setSelectedOrganisationState(userOrg)
+              localStorage.setItem('selectedOrganisationId', userOrg.id)
+            }
+          } else {
+            setSelectedOrganisationState(foundOrg)
+          }
+          setTimeout(() => {
+            setIsLoading(false)
+          }, 500)
           return
         }
       }
-      // If no valid stored organisation, default to PMI
+
+      // If no valid stored organisation, default to first organisation
       setSelectedOrganisationState(initialOrganisations[0])
     } catch (error) {
       console.error('Error loading selected organisation from localStorage:', error)
@@ -148,10 +173,41 @@ export const OrganisationProvider = ({ children }: { children: React.ReactNode }
         setIsLoading(false)
       }, 500)
     }
-  }, [getOrganisationById])
+  }, [getOrganisationById, user?.organisationId])
+
+  // When user logs in or changes, set default organization or enforce restrictions
+  useEffect(() => {
+    if (user?.organisationId) {
+      const userOrg = getOrganisationById(user.organisationId)
+      if (userOrg) {
+        // If no organization is selected, set to user's organization
+        if (!selectedOrganisation) {
+          setSelectedOrganisationState(userOrg)
+          localStorage.setItem('selectedOrganisationId', userOrg.id)
+        }
+        // If user is Birmingham, enforce they can only have Birmingham selected
+        else if (user.organisationId === 'allsee-birmingham' && selectedOrganisation.id !== 'allsee-birmingham') {
+          setSelectedOrganisationState(userOrg)
+          localStorage.setItem('selectedOrganisationId', userOrg.id)
+        }
+        // Technologies users can switch freely, so we don't enforce anything here
+      }
+    } else if (!user && selectedOrganisation) {
+      // User logged out, clear selection
+      setSelectedOrganisationState(null)
+      localStorage.removeItem('selectedOrganisationId')
+    }
+  }, [user?.organisationId, getOrganisationById, selectedOrganisation, user])
 
   // Wrapper to persist selection to localStorage
+  // Also validates that the user can access the selected organization
   const setSelectedOrganisation = (org: Organisation | null) => {
+    // Validate: if user is Birmingham, they can't select Technologies
+    if (org && user?.organisationId === 'allsee-birmingham' && org.id === 'allsee-technologies') {
+      console.warn('Birmingham users cannot access Allsee Technologies organization')
+      return // Don't allow the change
+    }
+
     setSelectedOrganisationState(org)
 
     // Persist to localStorage

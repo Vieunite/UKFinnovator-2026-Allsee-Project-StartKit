@@ -64,7 +64,7 @@ const RenderMarker = ({
       </AdvancedMarker>
       {tooltipContent && hovered && (
         <InfoWindow anchor={marker} headerDisabled>
-          <div className="dark:text-textLightMode flex flex-col gap-2">
+          <div className="flex flex-col gap-2 dark:text-textLightMode">
             <h3 className="font-semibold">{tooltipContent.name}</h3>
             <p className="text-sm text-gray-600">{tooltipContent.address}</p>
             <p className="text-xs">
@@ -100,7 +100,6 @@ const RenderMap = ({
 }: RenderMapProps) => {
   const router = useRouter()
   const handleMarkerClick = (deviceId: string) => {
-    console.log('deviceId', deviceId)
     const filter: FilterState = {
       field: 'id',
       value: deviceId,
@@ -220,7 +219,7 @@ const RenderMapModal = ({
 
   return (
     <div className="fixed left-0 top-0 z-[120] flex h-full w-full items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="flex h-auto max-h-[90%] w-[80%] flex-col gap-6 rounded-xl bg-white p-6 shadow-xl max-sm:w-[90%] max-sm:p-4 lg:p-10 dark:bg-gray-800">
+      <div className="flex h-auto max-h-[90%] w-[80%] flex-col gap-6 rounded-xl bg-white p-6 shadow-xl dark:bg-gray-800 max-sm:w-[90%] max-sm:p-4 lg:p-10">
         <div className="flex items-center justify-between gap-2">
           <div className="flex flex-col gap-2">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Screen Locations Map</h1>
@@ -299,7 +298,7 @@ const RenderMapModal = ({
         </div>
 
         <div className="flex flex-col gap-4 overflow-y-auto">
-          <div className="flex h-[600px] w-full overflow-hidden rounded-lg rounded-br-none border border-gray-200 max-md:flex-col max-md:rounded-bl-none md:rounded-tr-none dark:border-gray-700">
+          <div className="flex h-[600px] w-full overflow-hidden rounded-lg rounded-br-none border border-gray-200 dark:border-gray-700 max-md:flex-col max-md:rounded-bl-none md:rounded-tr-none">
             <div className="h-full w-[calc(100%-300px)] max-md:h-[400px] max-md:w-full">
               <RenderMap
                 googleMapsApiKey={googleMapsApiKey}
@@ -310,7 +309,7 @@ const RenderMapModal = ({
                 setCenteredLocation={setCenteredLocation}
               />
             </div>
-            <div className="h-full w-[300px] overflow-y-auto border-l border-gray-200 bg-gray-50 max-md:h-[300px] max-md:w-full max-md:border-l-0 max-md:border-t dark:border-gray-700 dark:bg-gray-900">
+            <div className="h-full w-[300px] overflow-y-auto border-l border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900 max-md:h-[300px] max-md:w-full max-md:border-l-0 max-md:border-t">
               <div className="sticky top-0 z-20 bg-gray-50 px-4 py-3 shadow-sm dark:bg-gray-900">
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                   Devices ({filteredDevices.length})
@@ -432,7 +431,7 @@ const ScreenLocations = ({ devices, loading }: ScreenLocationsProps) => {
         />
       )}
 
-      <div className="dark:text-textDarkMode text-textLightMode flex h-full min-h-[250px] w-full min-w-0 flex-shrink-0 flex-col rounded-lg bg-white p-3 shadow-md lg:p-2 dark:bg-gray-800">
+      <div className="flex h-full min-h-[250px] w-full min-w-0 flex-shrink-0 flex-col rounded-lg bg-white p-3 text-textLightMode shadow-md dark:bg-gray-800 dark:text-textDarkMode lg:p-2">
         <div className="flex flex-shrink-0 items-center justify-between gap-2 font-medium">
           <h3 className="text-sm lg:text-base">Screen Locations</h3>
           <button

@@ -109,8 +109,6 @@ export const ActiveFilters: React.FC<ActiveFiltersProps> = ({
   const containerRef = useRef<HTMLDivElement>(null)
   const componentIdRef = useRef<string>(`active-filters-${Math.random().toString(36).substr(2, 9)}`)
 
-  console.log('activeFilters', activeFilters)
-
   // Helper to get organisation name from ID
   const getOrgName = (orgId: string): string => {
     const org = getOrganisationById(orgId)

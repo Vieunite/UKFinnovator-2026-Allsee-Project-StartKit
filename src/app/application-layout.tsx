@@ -8,7 +8,7 @@ import { SidebarLayout } from '@/components/sidebar-layout'
 import ThemeToggler from '@/components/theme/ThemeToggler'
 import { UploadProgressSidebar } from '@/components/UploadProgressSidebar'
 import { AlertProvider } from '@/context/AlertContext'
-import { AuthProvider } from '@/context/AuthContext'
+import { AuthProvider, useAuth } from '@/context/AuthContext'
 import { ConfirmProvider } from '@/context/ConfirmContext'
 import { GeneralProvider } from '@/context/GeneralContext'
 import { HeaderProvider } from '@/context/HeaderContext'
@@ -17,15 +17,23 @@ import { authPages } from '@/data'
 import { QueryProvider } from '@/providers/QueryProvider'
 import { QuestionMarkCircleIcon } from '@heroicons/react/24/outline'
 import { usePathname, useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 const ApplicationContent = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname()
   const router = useRouter()
   const { isLoading } = useOrganisation()
+  const { isAuthenticated } = useAuth()
   const [menuOpen, setMenuOpen] = useState<Record<string, boolean>>({})
 
   const isAuthPage = authPages.includes(pathname)
+
+  // Redirect to login if not authenticated and not on auth page
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated && !isAuthPage) {
+      router.push(`/login?redirect=${encodeURIComponent(pathname)}`)
+    }
+  }, [isAuthenticated, isAuthPage, isLoading, pathname, router])
 
   // Show full-screen loader while loading organisation
   if (isLoading) {

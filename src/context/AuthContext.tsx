@@ -1,13 +1,51 @@
 'use client'
 
 import type { UserSummary } from '@/types/openapi'
+import { useRouter } from 'next/navigation'
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 
+// Extended user type with additional properties we need
+export type ExtendedUser = UserSummary & {
+  username?: string
+  full_name?: string
+  organisationId?: string
+}
+
+// Hardcoded user accounts
+export type HardcodedUser = {
+  id: number
+  username: string
+  password: string
+  email: string
+  full_name: string
+  organisationId: string // The organization this user belongs to
+}
+
+export const HARDCODED_USERS: HardcodedUser[] = [
+  {
+    id: 1,
+    username: 'allsee-tech',
+    password: 'allsee123',
+    email: 'admin@allseetechnologies.com',
+    full_name: 'Allsee Technologies Admin',
+    organisationId: 'allsee-technologies',
+  },
+  {
+    id: 2,
+    username: 'allsee-bham',
+    password: 'birmingham123',
+    email: 'admin@allseebirmingham.com',
+    full_name: 'Allsee Birmingham Admin',
+    organisationId: 'allsee-birmingham',
+  },
+]
+
 interface AuthContextType {
-  user: UserSummary | null
-  setUser: (user: UserSummary | null) => void
+  user: ExtendedUser | null
+  setUser: (user: ExtendedUser | null) => void
   isAuthenticated: boolean
   logout: () => void
+  login: (username: string, password: string) => Promise<boolean>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -23,16 +61,17 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUserState] = useState<UserSummary | null>(null)
+  const [user, setUserState] = useState<ExtendedUser | null>(null)
   const [isInitialized, setIsInitialized] = useState(false)
+
+  const router = useRouter()
 
   // Load user from localStorage on mount
   useEffect(() => {
     try {
       const storedUser = localStorage.getItem(USER_STORAGE_KEY)
       if (storedUser) {
-        const parsedUser = JSON.parse(storedUser) as UserSummary
-        console.log('user', parsedUser)
+        const parsedUser = JSON.parse(storedUser) as ExtendedUser
         setUserState(parsedUser)
       }
     } catch (error) {
@@ -44,7 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   // Set user and persist to localStorage
-  const setUser = useCallback((newUser: UserSummary | null) => {
+  const setUser = useCallback((newUser: ExtendedUser | null) => {
     setUserState(newUser)
     if (newUser) {
       localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(newUser))
@@ -53,20 +92,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  // Login function
+  const login = useCallback(
+    async (username: string, password: string): Promise<boolean> => {
+      // Find user in hardcoded users
+      const foundUser = HARDCODED_USERS.find((u) => u.username === username && u.password === password)
+
+      if (!foundUser) {
+        return false
+      }
+
+      // Create user object compatible with ExtendedUser
+      const user: ExtendedUser = {
+        id: foundUser.id,
+        email: foundUser.email,
+        username: foundUser.username,
+        full_name: foundUser.full_name,
+        organisationId: foundUser.organisationId,
+      }
+
+      setUser(user)
+      return true
+    },
+    [setUser]
+  )
+
   // Logout function
   const logout = useCallback(async () => {
-    try {
-      // Call logout API
-      await fetch('/api/logout', {
-        method: 'POST',
-      })
-    } catch (error) {
-      console.error('Logout error:', error)
-    } finally {
-      // Clear user from context and storage
-      setUser(null)
-    }
-  }, [setUser])
+    // Clear user from context and storage
+    setUser(null)
+    router.push('/login')
+  }, [setUser, router])
 
   const isAuthenticated = useMemo(() => !!user, [user])
 
@@ -76,8 +132,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser,
       isAuthenticated,
       logout,
+      login,
     }),
-    [user, setUser, isAuthenticated, logout]
+    [user, setUser, isAuthenticated, logout, login]
   )
 
   // Don't render children until we've checked localStorage

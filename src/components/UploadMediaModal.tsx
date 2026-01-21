@@ -82,8 +82,6 @@ export const UploadMediaModal: React.FC<UploadMediaModalProps> = ({
             folder_id: folderId,
           })
 
-          console.log('handleUpload response', response)
-
           // Save the upload with real API response data (including real upload_id)
           // This allows status polling to work correctly
           const uploadItem: UploadItem = {

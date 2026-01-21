@@ -227,7 +227,6 @@ export const TimeTagEditorModal: React.FC<TimeTagEditorModalProps> = ({
         windows: windowsPayload,
         color: color || null,
       }
-      console.log('createPayload', createPayload)
       onSave(createPayload)
     } else {
       // For update, use TimeTagUpdate (all fields optional)
@@ -238,7 +237,6 @@ export const TimeTagEditorModal: React.FC<TimeTagEditorModalProps> = ({
         windows: windowsPayload,
         color: color || null,
       }
-      console.log('updatePayload', updatePayload)
       onSave(updatePayload, initialTag?.name)
     }
     onClose() // No need to check for changes here since we're saving

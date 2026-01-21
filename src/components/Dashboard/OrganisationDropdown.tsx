@@ -1,3 +1,4 @@
+import { useAuth } from '@/context/AuthContext'
 import { Organisation, useOrganisation } from '@/context/OrganisationContext'
 import { BuildingOfficeIcon, ChevronDownIcon } from '@heroicons/react/24/outline'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -6,7 +7,32 @@ import { createPortal } from 'react-dom'
 // import type { Organisation } from '@/context/OrganisationContext'
 
 const OrganisationDropdown = () => {
-  const { organisations, selectedOrganisation, setSelectedOrganisation } = useOrganisation()
+  const { organisations, selectedOrganisation, setSelectedOrganisation, getOrganisationById } = useOrganisation()
+  const { user } = useAuth()
+
+  // Filter organisations based on user's organization
+  const availableOrganisations = useMemo(() => {
+    if (!user?.organisationId) return organisations
+
+    const userOrg = getOrganisationById(user.organisationId)
+    if (!userOrg) return organisations
+
+    // If user belongs to Allsee Technologies, they can see both
+    if (userOrg.id === 'allsee-technologies') {
+      return organisations
+    }
+
+    // If user belongs to Allsee Birmingham, they can only see their own org
+    if (userOrg.id === 'allsee-birmingham') {
+      return [userOrg] // Return only their organization
+    }
+
+    // Default: return all
+    return organisations
+  }, [user, organisations, getOrganisationById])
+
+  // Note: Organization selection logic is handled in OrganisationContext
+  // This component only displays the filtered list based on user permissions
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -22,8 +48,8 @@ const OrganisationDropdown = () => {
     }
     return out
   }, [])
-  const allIds = useMemo(() => collectIds(organisations), [organisations, collectIds])
-  const topLevelIds = useMemo(() => organisations.map((o) => o.id), [organisations])
+  const allIds = useMemo(() => collectIds(availableOrganisations), [availableOrganisations, collectIds])
+  const topLevelIds = useMemo(() => availableOrganisations.map((o) => o.id), [availableOrganisations])
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set(allIds))
 
   // Close dropdown when clicking outside (including portal menu)
@@ -87,7 +113,10 @@ const OrganisationDropdown = () => {
     return next
   }, [])
 
-  const filtered = useMemo(() => filterTree(organisations, search), [search, filterTree, organisations])
+  const filtered = useMemo(
+    () => filterTree(availableOrganisations, search),
+    [search, filterTree, availableOrganisations]
+  )
 
   // Auto-expand based on search term length
   useEffect(() => {
@@ -118,10 +147,10 @@ const OrganisationDropdown = () => {
           }
         }
       }
-      collectMatchingAndAncestors(organisations, search)
+      collectMatchingAndAncestors(availableOrganisations, search)
       setExpanded(matchingIds)
     }
-  }, [search, allIds, topLevelIds, organisations])
+  }, [search, allIds, topLevelIds, availableOrganisations])
 
   // Indentation constants
   const LEFT_GUTTER = 2
@@ -198,12 +227,12 @@ const OrganisationDropdown = () => {
         onClick={() => setIsOpen(!isOpen)}
         className="flex w-full items-center justify-between gap-2 rounded-md bg-white px-3 py-2 shadow-md transition-colors hover:bg-gray-50 dark:bg-zinc-900 dark:hover:bg-zinc-800"
       >
-        <span className="dark:text-textDarkMode text-textLightMode flex items-center gap-2">
+        <span className="flex items-center gap-2 text-textLightMode dark:text-textDarkMode">
           <BuildingOfficeIcon className="h-4 w-4 lg:h-5 lg:w-5" />
           <p className="text-xs lg:text-sm">{selectedOrganisation?.name || 'Select Organisation'}</p>
         </span>
         <span
-          className={`dark:text-textDarkMode text-textLightMode rounded-full border-[2px] border-black p-[1px] transition-transform dark:border-white ${isOpen ? 'rotate-180' : ''}`}
+          className={`rounded-full border-[2px] border-black p-[1px] text-textLightMode transition-transform dark:border-white dark:text-textDarkMode ${isOpen ? 'rotate-180' : ''}`}
         >
           <ChevronDownIcon className="h-3 w-3 stroke-[2.5]" />
         </span>
@@ -237,7 +266,7 @@ const OrganisationDropdown = () => {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search organisations..."
-                  className="dark:text-textDarkMode w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-xs outline-none transition-all placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:ring-primary dark:border-gray-600 dark:bg-zinc-800"
+                  className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-xs outline-none transition-all placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:ring-primary dark:border-gray-600 dark:bg-zinc-800 dark:text-textDarkMode"
                 />
               </div>
             </div>
